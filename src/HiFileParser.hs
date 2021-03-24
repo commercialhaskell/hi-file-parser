@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
@@ -32,6 +33,7 @@ import qualified Data.Vector                   as V
 import           GHC.IO.IOMode                 (IOMode (..))
 import           Numeric                       (showHex)
 import           RIO.ByteString                as B (ByteString, hGetSome, null)
+import           RIO                           (Generic, NFData)
 import           System.IO                     (withBinaryFile)
 
 type IsBoot = Bool
@@ -40,19 +42,19 @@ type ModuleName = ByteString
 
 newtype List a = List
     { unList :: [a]
-    } deriving newtype (Show)
+    } deriving newtype (Show, NFData)
 
 newtype Dictionary = Dictionary
     { unDictionary :: V.Vector ByteString
-    } deriving newtype (Show)
+    } deriving newtype (Show, NFData)
 
 newtype Module = Module
     { unModule :: ModuleName
-    } deriving newtype (Show)
+    } deriving newtype (Show, NFData)
 
 newtype Usage = Usage
     { unUsage :: FilePath
-    } deriving newtype (Show)
+    } deriving newtype (Show, NFData)
 
 data Dependencies = Dependencies
     { dmods    :: List (ModuleName, IsBoot)
@@ -60,12 +62,14 @@ data Dependencies = Dependencies
     , dorphs   :: List Module
     , dfinsts  :: List Module
     , dplugins :: List ModuleName
-    } deriving (Show)
+    } deriving (Show, Generic)
+instance NFData Dependencies
 
 data Interface = Interface
     { deps  :: Dependencies
     , usage :: List Usage
-    } deriving (Show)
+    } deriving (Show, Generic)
+instance NFData Interface
 
 -- | Read a block prefixed with its length
 withBlockPrefix :: Get a -> Get a
