@@ -1,6 +1,6 @@
 name:                hi-file-parser
 version:             0.1.1.0
-github:              commercialhaskell/stack
+github:              commercialhaskell/hi-file-parser
 license:             BSD3
 author:              Hussein Ait-Lahcen
 maintainer:          michael@snoyman.com
