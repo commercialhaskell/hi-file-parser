@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE BangPatterns               #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 
 module HiFileParser
     ( Interface(..)
@@ -16,8 +18,8 @@ module HiFileParser
 {- HLINT ignore "Reduce duplication" -}
 
 import           Control.Monad                 (replicateM, replicateM_)
-import           Data.Binary                   (Get, Word32)
-import           Data.Binary.Get               (Decoder (..), bytesRead,
+import           Data.Binary                   (Word64,Word32,Word8)
+import qualified Data.Binary.Get as G          (Get, Decoder (..), bytesRead,
                                                 getByteString, getInt64be,
                                                 getWord32be, getWord64be,
                                                 getWord8, lookAhead,
@@ -33,8 +35,74 @@ import qualified Data.Vector                   as V
 import           GHC.IO.IOMode                 (IOMode (..))
 import           Numeric                       (showHex)
 import           RIO.ByteString                as B (ByteString, hGetSome, null)
-import           RIO                           (Generic, NFData)
+import           RIO                           (Int64,Generic, NFData)
 import           System.IO                     (withBinaryFile)
+import           Data.Bits                     (FiniteBits(..),testBit,
+                                                unsafeShiftL,(.|.),clearBit,
+                                                complement)
+import           Control.Monad.State
+import qualified Debug.Trace
+
+data IfaceGetState = IfaceGetState
+  { useLEB128 :: Bool -- ^ Use LEB128 encoding for numbers
+  }
+
+type Get a = StateT IfaceGetState G.Get a
+
+enable_debug :: Bool
+enable_debug = False
+
+traceGet :: String -> Get ()
+traceGet s
+  | enable_debug = Debug.Trace.trace s (return ())
+  | otherwise    = return ()
+
+traceShow :: Show a => String -> Get a -> Get a
+traceShow s g
+  | not enable_debug = g
+  | otherwise = do
+    a <- g
+    traceGet (s ++ " " ++ show a)
+    return a
+
+runGetIncremental :: Get a -> G.Decoder a
+runGetIncremental g = G.runGetIncremental (evalStateT g emptyState)
+  where
+    emptyState = IfaceGetState False
+
+getByteString :: Int -> Get ByteString
+getByteString i = lift (G.getByteString i)
+
+getWord8 :: Get Word8
+getWord8 = lift G.getWord8
+
+bytesRead :: Get Int64
+bytesRead = lift G.bytesRead
+
+skip :: Int -> Get ()
+skip = lift . G.skip
+
+uleb :: Get a -> Get a -> Get a
+uleb f g = do
+  c <- gets useLEB128
+  if c then f else g
+
+getWord32be :: Get Word32
+getWord32be = uleb getULEB128 (lift G.getWord32be)
+
+getWord64be :: Get Word64
+getWord64be = uleb getULEB128 (lift G.getWord64be)
+
+getInt64be :: Get Int64
+getInt64be = uleb getSLEB128 (lift G.getInt64be)
+
+lookAhead :: Get b -> Get b
+lookAhead g = do
+  s <- get
+  lift $ G.lookAhead (evalStateT g s)
+
+getPtr :: Get Word32
+getPtr = lift G.getWord32be
 
 type IsBoot = Bool
 
@@ -73,7 +141,7 @@ instance NFData Interface
 
 -- | Read a block prefixed with its length
 withBlockPrefix :: Get a -> Get a
-withBlockPrefix f = getWord32be *> f
+withBlockPrefix f = getPtr *> f
 
 getBool :: Get Bool
 getBool = toEnum . fromIntegral <$> getWord8
@@ -106,16 +174,20 @@ getDictionary ptr = do
     offset <- bytesRead
     skip $ ptr - fromIntegral offset
     size <- fromIntegral <$> getInt64be
-    Dictionary <$> V.replicateM size getByteStringSized
+    traceGet ("Dictionary size: " ++ show size)
+    dict <- Dictionary <$> V.replicateM size getByteStringSized
+    traceGet ("Dictionary: " ++ show dict)
+    return dict
 
 getCachedBS :: Dictionary -> Get ByteString
-getCachedBS d = go =<< getWord32be
+getCachedBS d = go =<< (traceShow "Dict index:" getWord32be)
   where
     go i =
         case unDictionary d V.!? fromIntegral i of
             Just bs -> pure bs
             Nothing -> fail $ "Invalid dictionary index: " <> show i
 
+-- | Get Fingerprint
 getFP :: Get ()
 getFP = void $ getWord64be *> getWord64be
 
@@ -394,6 +466,47 @@ getInterface861 d = do
                 3 -> getModule *> getFP $> Nothing
                 _ -> fail $ "Invalid usageType: " <> show usageType
 
+getInterface8101 :: Dictionary -> Get Interface
+getInterface8101 d = do
+    void $ traceShow "Module:" getModule
+    void $ traceShow "Sig:" $ getMaybe getModule
+    void getWord8
+    replicateM_ 6 getFP
+    void getBool
+    void getBool
+    Interface <$> traceShow "Dependencies:" getDependencies <*> traceShow "Usage:" getUsage
+  where
+    getModule = do
+        idType <- getWord8
+        case idType of
+            0 -> void $ getCachedBS d
+            _ ->
+                void $
+                getCachedBS d *> getList (getTuple (getCachedBS d) getModule)
+        Module <$> getCachedBS d
+    getDependencies =
+        withBlockPrefix $
+        Dependencies
+          <$> getList (getTuple (getCachedBS d) getBool)
+          <*> getList (getTuple (getCachedBS d) getBool)
+          <*> getList getModule
+          <*> getList getModule
+          <*> getList (getCachedBS d)
+    getUsage = withBlockPrefix $ List . catMaybes . unList <$> getList go
+      where
+        go :: Get (Maybe Usage)
+        go = do
+            usageType <- getWord8
+            case usageType of
+                0 -> getModule *> getFP *> getBool $> Nothing
+                1 ->
+                    getCachedBS d *> getFP *> getMaybe getFP *>
+                    getList (getTuple (getWord8 *> getCachedBS d) getFP) *>
+                    getBool $> Nothing
+                2 -> Just . Usage <$> getString <* getFP
+                3 -> getModule *> getFP $> Nothing
+                _ -> fail $ "Invalid usageType: " <> show usageType
+
 getInterface :: Get Interface
 getInterface = do
     magic <- getWord32be
@@ -402,19 +515,28 @@ getInterface = do
         0x1face      -> void getWord32be
         -- x64
         0x1face64    -> void getWord64be
+        -- GHC 8.10 mistakenly encoded header fields with LEB128
+        -- so it gets special treatment
+        0xe49ceb0f   -> do 
+          modify (\c -> c { useLEB128 = True})
+          void getWord8
         invalidMagic -> fail $ "Invalid magic: " <> showHex invalidMagic ""
     -- ghc version
     version <- getString
+    traceGet ("Version: " ++ version)
     -- way
-    void getString
+    way <- getString
+    traceGet ("Ways: " ++ show way)
     -- dict_ptr
-    dictPtr <- getWord32be
+    dictPtr <- getPtr
+    traceGet ("Dict ptr: " ++ show dictPtr)
     -- dict
     dict <- lookAhead $ getDictionary $ fromIntegral dictPtr
     -- symtable_ptr
-    void getWord32be
+    void getPtr
     let versions =
-            [ ("8061", getInterface861)
+            [ ("8101", getInterface8101)
+            , ("8061", getInterface861)
             , ("8041", getInterface841)
             , ("8021", getInterface821)
             , ("8001", getInterface801)
@@ -427,13 +549,50 @@ getInterface = do
         Just f  -> f dict
         Nothing -> fail $ "Unsupported version: " <> version
 
+
 fromFile :: FilePath -> IO (Either String Interface)
 fromFile fp = withBinaryFile fp ReadMode go
   where
     go h =
-      let feed (Done _ _ iface) = pure $ Right iface
-          feed (Fail _ _ msg) = pure $ Left msg
-          feed (Partial k) = do
+      let feed (G.Done _ _ iface) = pure $ Right iface
+          feed (G.Fail _ _ msg) = pure $ Left msg
+          feed (G.Partial k) = do
             chunk <- hGetSome h defaultChunkSize
             feed $ k $ if B.null chunk then Nothing else Just chunk
-      in feed $ runGetIncremental getInterface
+      in feed $ runGetIncremental getInterface 
+
+
+getULEB128 :: forall a. (Integral a, FiniteBits a) => Get a
+getULEB128 =
+    go 0 0
+  where
+    go :: Int -> a -> Get a
+    go shift w = do
+        b <- getWord8
+        let !hasMore = testBit b 7
+        let !val = w .|. ((clearBit (fromIntegral b) 7) `unsafeShiftL` shift) :: a
+        if hasMore
+            then do
+                go (shift+7) val
+            else
+                return $! val
+
+getSLEB128 :: forall a. (Integral a, FiniteBits a) => Get a
+getSLEB128 = do
+    (val,shift,signed) <- go 0 0
+    if signed && (shift < finiteBitSize val )
+        then return $! ((complement 0 `unsafeShiftL` shift) .|. val)
+        else return val
+    where
+        go :: Int -> a -> Get (a,Int,Bool)
+        go shift val = do
+            byte <- getWord8
+            let !byteVal = fromIntegral (clearBit byte 7) :: a
+            let !val' = val .|. (byteVal `unsafeShiftL` shift)
+            let !more = testBit byte 7
+            let !shift' = shift+7
+            if more
+                then go (shift') val'
+                else do
+                    let !signed = testBit byte 6
+                    return (val',shift',signed)
