@@ -44,23 +44,23 @@ import           Data.Bits                     (FiniteBits(..),testBit,
 import           Control.Monad.State
 import qualified Debug.Trace
 
-data IfaceGetState = IfaceGetState
+newtype IfaceGetState = IfaceGetState
   { useLEB128 :: Bool -- ^ Use LEB128 encoding for numbers
   }
 
 type Get a = StateT IfaceGetState G.Get a
 
-enable_debug :: Bool
-enable_debug = False
+enableDebug :: Bool
+enableDebug = False
 
 traceGet :: String -> Get ()
 traceGet s
-  | enable_debug = Debug.Trace.trace s (return ())
+  | enableDebug = Debug.Trace.trace s (return ())
   | otherwise    = return ()
 
 traceShow :: Show a => String -> Get a -> Get a
 traceShow s g
-  | not enable_debug = g
+  | not enableDebug = g
   | otherwise = do
     a <- g
     traceGet (s ++ " " ++ show a)
@@ -187,7 +187,7 @@ getDictionary ptr = do
     return dict
 
 getCachedBS :: Dictionary -> Get ByteString
-getCachedBS d = go =<< (traceShow "Dict index:" getWord32be)
+getCachedBS d = go =<< traceShow "Dict index:" getWord32be
   where
     go i =
         case unDictionary d V.!? fromIntegral i of
@@ -609,7 +609,7 @@ getULEB128 =
     go shift w = do
         b <- getWord8
         let !hasMore = testBit b 7
-        let !val = w .|. ((clearBit (fromIntegral b) 7) `unsafeShiftL` shift) :: a
+        let !val = w .|. (clearBit (fromIntegral b) 7 `unsafeShiftL` shift) :: a
         if hasMore
             then do
                 go (shift+7) val
@@ -631,7 +631,7 @@ getSLEB128 = do
             let !more = testBit byte 7
             let !shift' = shift+7
             if more
-                then go (shift') val'
+                then go shift' val'
                 else do
                     let !signed = testBit byte 6
                     return (val',shift',signed)
