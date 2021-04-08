@@ -3,6 +3,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE LambdaCase                 #-}
 
 module HiFileParser
     ( Interface(..)
@@ -154,12 +155,18 @@ getMaybe f = bool (pure Nothing) (Just <$> f) =<< getBool
 
 getList :: Get a -> Get (List a)
 getList f = do
-    i <- getWord8
-    l <-
-        if i == 0xff
-            then getWord32be
-            else pure (fromIntegral i :: Word32)
-    List <$> replicateM (fromIntegral l) f
+  use_uleb <- gets useLEB128
+  if use_uleb
+    then do
+      l <- (getSLEB128 :: Get Int64)
+      List <$> replicateM (fromIntegral l) f
+    else do
+      i <- getWord8
+      l <-
+          if i == 0xff
+              then getWord32be
+              else pure (fromIntegral i :: Word32)
+      List <$> replicateM (fromIntegral l) f
 
 getTuple :: Get a -> Get b -> Get (a, b)
 getTuple f g = (,) <$> f <*> g
@@ -188,8 +195,14 @@ getCachedBS d = go =<< (traceShow "Dict index:" getWord32be)
             Nothing -> fail $ "Invalid dictionary index: " <> show i
 
 -- | Get Fingerprint
+getFP' :: Get String
+getFP' = do
+  x <- getWord64be
+  y <- getWord64be
+  return (showHex x (showHex y ""))
+
 getFP :: Get ()
-getFP = void $ getWord64be *> getWord64be
+getFP = void getFP'
 
 getInterface721 :: Dictionary -> Get Interface
 getInterface721 d = do
@@ -477,12 +490,13 @@ getInterface8101 d = do
     Interface <$> traceShow "Dependencies:" getDependencies <*> traceShow "Usage:" getUsage
   where
     getModule = do
-        idType <- getWord8
+        idType <- traceShow "Unit type:" getWord8
         case idType of
             0 -> void $ getCachedBS d
-            _ ->
+            1 ->
                 void $
                 getCachedBS d *> getList (getTuple (getCachedBS d) getModule)
+            _ -> fail $ "Invalid unit type: " <> show idType
         Module <$> getCachedBS d
     getDependencies =
         withBlockPrefix $
@@ -496,42 +510,67 @@ getInterface8101 d = do
       where
         go :: Get (Maybe Usage)
         go = do
-            usageType <- getWord8
+            usageType <- traceShow "Usage type:" getWord8
             case usageType of
-                0 -> getModule *> getFP *> getBool $> Nothing
+                0 -> traceShow "Module:" getModule *> getFP *> getBool $> Nothing
                 1 ->
-                    getCachedBS d *> getFP *> getMaybe getFP *>
+                    traceShow "Home module:" (getCachedBS d) *> getFP *> getMaybe getFP *>
                     getList (getTuple (getWord8 *> getCachedBS d) getFP) *>
                     getBool $> Nothing
-                2 -> Just . Usage <$> getString <* getFP
+                2 -> Just . Usage <$> traceShow "File:" getString <* traceShow "FP:" getFP'
                 3 -> getModule *> getFP $> Nothing
                 _ -> fail $ "Invalid usageType: " <> show usageType
 
 getInterface :: Get Interface
 getInterface = do
-    magic <- getWord32be
+    let enableLEB128 = modify (\c -> c { useLEB128 = True})
+
+    magic <- lookAhead getWord32be >>= \case
+        -- normal magic
+        0x1face      -> getWord32be
+        0x1face64    -> getWord32be
+        m            -> do
+          -- GHC 8.10 mistakenly encoded header fields with LEB128
+          -- so it gets special treatment
+          lookAhead (enableLEB128 >> getWord32be) >>= \case
+            0x1face      -> enableLEB128 >> getWord32be
+            0x1face64    -> enableLEB128 >> getWord32be
+            _            -> fail $ "Invalid magic: " <> showHex m ""
+
+    traceGet ("Magic: " ++ showHex magic "")
+
+    -- empty field (removed in 9.0...)
     case magic of
-        -- x32
-        0x1face      -> void getWord32be
-        -- x64
-        0x1face64    -> void getWord64be
-        -- GHC 8.10 mistakenly encoded header fields with LEB128
-        -- so it gets special treatment
-        0xe49ceb0f   -> do 
-          modify (\c -> c { useLEB128 = True})
-          void getWord8
-        invalidMagic -> fail $ "Invalid magic: " <> showHex invalidMagic ""
+        0x1face      -> do
+          e <- lookAhead getWord32be
+          if e == 0
+            then void getWord32be
+            else enableLEB128 -- > 9.0
+        0x1face64    -> do
+          e <- lookAhead getWord64be
+          if e == 0
+            then void getWord64be
+            else enableLEB128 -- > 9.0
+        _            -> return ()
+
     -- ghc version
     version <- getString
     traceGet ("Version: " ++ version)
+
     -- way
     way <- getString
     traceGet ("Ways: " ++ show way)
+
+    -- extensible fields (GHC > 9.0)
+    when (version >= "9001") $ void getPtr
+
     -- dict_ptr
     dictPtr <- getPtr
     traceGet ("Dict ptr: " ++ show dictPtr)
+
     -- dict
     dict <- lookAhead $ getDictionary $ fromIntegral dictPtr
+
     -- symtable_ptr
     void getPtr
     let versions =
