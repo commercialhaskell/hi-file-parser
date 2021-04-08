@@ -14,6 +14,12 @@ extra-source-files:
 - test-files/iface/x64/ghc822/X.hi
 - test-files/iface/x64/ghc864/Main.hi
 - test-files/iface/x64/ghc864/X.hi
+- test-files/iface/x64/ghc884/Main.hi
+- test-files/iface/x64/ghc884/X.hi
+- test-files/iface/x64/ghc8104/Main.hi
+- test-files/iface/x64/ghc8104/X.hi
+- test-files/iface/x64/ghc901/Main.hi
+- test-files/iface/x64/ghc901/X.hi
 - test-files/iface/x32/ghc844/Main.hi
 - test-files/iface/x32/ghc802/Main.hi
 - test-files/iface/x32/ghc7103/Main.hi
