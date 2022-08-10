@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -18,7 +19,7 @@ module HiFileParser
 
 {- HLINT ignore "Reduce duplication" -}
 
-import           Control.Monad                 (replicateM, replicateM_)
+import           Control.Monad                 (replicateM, replicateM_, when)
 import           Data.Binary                   (Word64,Word32,Word8)
 import qualified Data.Binary.Get as G          (Get, Decoder (..), bytesRead,
                                                 getByteString, getInt64be,
@@ -31,7 +32,9 @@ import           Data.Char                     (chr)
 import           Data.Functor                  (void, ($>))
 import           Data.List                     (find)
 import           Data.Maybe                    (catMaybes)
+#if !MIN_VERSION_base(4,11,0)
 import           Data.Semigroup                ((<>))
+#endif
 import qualified Data.Vector                   as V
 import           GHC.IO.IOMode                 (IOMode (..))
 import           Numeric                       (showHex)
@@ -41,7 +44,8 @@ import           System.IO                     (withBinaryFile)
 import           Data.Bits                     (FiniteBits(..),testBit,
                                                 unsafeShiftL,(.|.),clearBit,
                                                 complement)
-import           Control.Monad.State
+import           Control.Monad.State           (StateT, evalStateT, get, gets,
+                                                lift, modify)
 import qualified Debug.Trace
 
 newtype IfaceGetState = IfaceGetState
@@ -598,7 +602,7 @@ fromFile fp = withBinaryFile fp ReadMode go
           feed (G.Partial k) = do
             chunk <- hGetSome h defaultChunkSize
             feed $ k $ if B.null chunk then Nothing else Just chunk
-      in feed $ runGetIncremental getInterface 
+      in feed $ runGetIncremental getInterface
 
 
 getULEB128 :: forall a. (Integral a, FiniteBits a) => Get a
