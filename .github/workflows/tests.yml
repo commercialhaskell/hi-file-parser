@@ -1,0 +1,51 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+    - master
+  workflow_dispatch:
+
+# As of 11 August 2022, ubuntu-latest, windows-latest and macos-latest come with
+# Stack 2.7.5.
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - ubuntu-latest
+        - windows-latest
+        - macos-latest
+        stack-yaml:
+        - stack-ghc-8.8.4.yaml
+        - stack-ghc-8.10.7.yaml
+        - stack-ghc-9.0.2.yaml
+        - stack-ghc-9.2.4.yaml
+    steps:
+    - name: Clone project
+      uses: actions/checkout@v3
+    - name: Cache dependencies on Unix-like OS
+      if: startsWith(runner.os, 'Linux') || startsWith(runner.os, 'macOS')
+      uses: actions/cache@v3
+      with:
+        path: ~/.stack
+        key: ${{ runner.os }}-${{ hashFiles( matrix.stack-yaml ) }}
+    - name: Cache dependencies on Windows
+      if: startsWith(runner.os, 'Windows')
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~\AppData\Roaming\stack
+          ~\AppData\Local\Programs\stack
+        key: ${{ runner.os }}-${{ hashFiles( matrix.stack-yaml ) }}
+    - name: Test
+      shell: bash
+      run: |
+        set -ex
+        stack --stack-yaml=${{ matrix.stack-yaml}} test --bench --only-dependencies
+        stack --stack-yaml=${{ matrix.stack-yaml}} test --haddock --no-haddock-deps --bench --no-run-benchmarks

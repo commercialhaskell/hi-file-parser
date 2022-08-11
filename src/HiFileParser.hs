@@ -30,7 +30,6 @@ import           Data.Bool                     (bool)
 import           Data.ByteString.Lazy.Internal (defaultChunkSize)
 import           Data.Char                     (chr)
 import           Data.Functor                  (void, ($>))
-import           Data.List                     (find)
 import           Data.Maybe                    (catMaybes)
 #if !MIN_VERSION_base(4,11,0)
 import           Data.Semigroup                ((<>))
@@ -543,7 +542,7 @@ getInterfaceRecent version d = do
               -- instead of a trust bool for each unit, we have an additional
               -- list of trusted units (transitive)
               trusted_pkgs <- getList (getCachedBS d)
-              let trusted u = elem u (unList trusted_pkgs)
+              let trusted u = u `elem` unList trusted_pkgs
               let all_pkgs_trust = List (zip all_pkgs (map trusted all_pkgs))
 
               -- these are new
