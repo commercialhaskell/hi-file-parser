@@ -15,10 +15,24 @@ type Usage = String
 type Module = ByteString
 
 versions32 :: [Version]
-versions32 = ["ghc7103", "ghc802", "ghc822", "ghc844"]
+versions32 =
+  [ "ghc7103"
+  , "ghc802"
+  , "ghc822"
+  , "ghc844"
+  ]
 
 versions64 :: [Version]
-versions64 = ["ghc822", "ghc844", "ghc864", "ghc884", "ghc8104", "ghc901"]
+versions64 =
+  [ "ghc822"
+  , "ghc844"
+  , "ghc864"
+  , "ghc884"
+  , "ghc8104"
+  , "ghc901"
+  , "ghc9023"
+  , "ghc9041"
+  ]
 
 spec :: Spec
 spec = describe "should successfully deserialize interface for" $ do
