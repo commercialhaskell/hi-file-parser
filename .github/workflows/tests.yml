@@ -17,31 +17,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-        - os: ubuntu-latest
-          stack-yaml: stack-ghc-8.8.4.yaml
-        - os: ubuntu-latest
-          stack-yaml: stack-ghc-8.10.7.yaml
-        - os: ubuntu-latest
-          stack-yaml: stack-ghc-9.0.2.yaml
-        - os: ubuntu-latest
-          stack-yaml: stack-ghc-9.2.4.yaml
-        - os: windows-latest
-          stack-yaml: stack-ghc-8.8.4.yaml
-        - os: windows-latest
-          stack-yaml: stack-ghc-8.10.7.yaml
-        - os: windows-latest
-          stack-yaml: stack-ghc-9.0.2.yaml
-        - os: windows-latest
-          stack-yaml: stack-ghc-9.2.4.yaml
-        - os: macos-latest
-          stack-yaml: stack-ghc-8.8.4.yaml
-        - os: macos-latest
-          stack-yaml: stack-ghc-8.10.7.yaml
-        - os: macos-latest
-          stack-yaml: stack-ghc-9.0.2.yaml
-        - os: macos-latest
-          stack-yaml: stack-ghc-9.2.4.yaml
+        os:
+        - ubuntu-latest
+        - windows-latest
+        - macos-latest
+        stack-yaml:
+        - stack-ghc-8.8.4.yaml
+        - stack-ghc-8.10.7.yaml
+        - stack-ghc-9.0.2.yaml
+        - stack-ghc-9.2.4.yaml
     steps:
     - name: Clone project
       uses: actions/checkout@v3
