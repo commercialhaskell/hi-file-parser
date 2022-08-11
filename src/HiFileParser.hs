@@ -52,6 +52,22 @@ newtype IfaceGetState = IfaceGetState
   { useLEB128 :: Bool -- ^ Use LEB128 encoding for numbers
   }
 
+data IfaceVersion
+  = V7021
+  | V7041
+  | V7061
+  | V7081
+  | V8001
+  | V8021
+  | V8041
+  | V8061
+  | V8101
+  | V9001
+  | V9041
+  deriving (Show,Eq,Ord,Enum)
+  -- careful, the Ord matters!
+
+
 type Get a = StateT IfaceGetState G.Get a
 
 enableDebug :: Bool
@@ -60,7 +76,7 @@ enableDebug = False
 traceGet :: String -> Get ()
 traceGet s
   | enableDebug = Debug.Trace.trace s (return ())
-  | otherwise    = return ()
+  | otherwise   = return ()
 
 traceShow :: Show a => String -> Get a -> Get a
 traceShow s g
@@ -483,15 +499,22 @@ getInterface861 d = do
                 3 -> getModule *> getFP $> Nothing
                 _ -> fail $ "Invalid usageType: " <> show usageType
 
-getInterface8101 :: Dictionary -> Get Interface
-getInterface8101 d = do
+getInterfaceRecent :: IfaceVersion -> Dictionary -> Get Interface
+getInterfaceRecent version d = do
     void $ traceShow "Module:" getModule
     void $ traceShow "Sig:" $ getMaybe getModule
-    void getWord8
-    replicateM_ 6 getFP
-    void getBool
-    void getBool
-    Interface <$> traceShow "Dependencies:" getDependencies <*> traceShow "Usage:" getUsage
+    void getWord8 -- hsc_src
+    getFP         -- iface_hash
+    getFP         -- mod_hash
+    getFP         -- flag_hash
+    getFP         -- opt_hash
+    getFP         -- hpc_hash
+    getFP         -- plugin_hash
+    void getBool  -- orphan
+    void getBool  -- hasFamInsts
+    ddeps  <- traceShow "Dependencies:" getDependencies
+    dusage <- traceShow "Usage:"        getUsage
+    pure (Interface ddeps dusage)
   where
     getModule = do
         idType <- traceShow "Unit type:" getWord8
@@ -503,26 +526,83 @@ getInterface8101 d = do
             _ -> fail $ "Invalid unit type: " <> show idType
         Module <$> getCachedBS d
     getDependencies =
-        withBlockPrefix $
-        Dependencies
-          <$> getList (getTuple (getCachedBS d) getBool)
-          <*> getList (getTuple (getCachedBS d) getBool)
-          <*> getList getModule
-          <*> getList getModule
-          <*> getList (getCachedBS d)
+        withBlockPrefix $ do
+          if version >= V9041
+            then do
+              -- warning: transitive dependencies are no longer stored,
+              -- only direct imports!
+              -- Modules are now prefixed with their UnitId (should have been
+              -- ModuleWithIsBoot...)
+              direct_mods <- traceShow "direct_mods:" $ getList (getCachedBS d *> getTuple (getCachedBS d) getBool)
+              direct_pkgs <- getList (getCachedBS d)
+
+              -- plugin packages are now stored separately
+              plugin_pkgs <- getList (getCachedBS d)
+              let all_pkgs = unList plugin_pkgs ++ unList direct_pkgs
+
+              -- instead of a trust bool for each unit, we have an additional
+              -- list of trusted units (transitive)
+              trusted_pkgs <- getList (getCachedBS d)
+              let trusted u = elem u (unList trusted_pkgs)
+              let all_pkgs_trust = List (zip all_pkgs (map trusted all_pkgs))
+
+              -- these are new
+              _sig_mods  <- getList getModule
+              _boot_mods <- getList (getCachedBS d *> getTuple (getCachedBS d) getBool)
+
+              dep_orphs  <- getList getModule
+              dep_finsts <- getList getModule
+
+              -- plugin names are no longer stored here
+              let dep_plgins = List []
+
+              pure (Dependencies direct_mods all_pkgs_trust dep_orphs dep_finsts dep_plgins)
+            else do
+              dep_mods   <- getList (getTuple (getCachedBS d) getBool)
+              dep_pkgs   <- getList (getTuple (getCachedBS d) getBool)
+              dep_orphs  <- getList getModule
+              dep_finsts <- getList getModule
+              dep_plgins <- getList (getCachedBS d)
+              pure (Dependencies dep_mods dep_pkgs dep_orphs dep_finsts dep_plgins)
+
     getUsage = withBlockPrefix $ List . catMaybes . unList <$> getList go
       where
         go :: Get (Maybe Usage)
         go = do
             usageType <- traceShow "Usage type:" getWord8
             case usageType of
-                0 -> traceShow "Module:" getModule *> getFP *> getBool $> Nothing
-                1 ->
-                    traceShow "Home module:" (getCachedBS d) *> getFP *> getMaybe getFP *>
-                    getList (getTuple (getWord8 *> getCachedBS d) getFP) *>
-                    getBool $> Nothing
-                2 -> Just . Usage <$> traceShow "File:" getString <* traceShow "FP:" getFP'
-                3 -> getModule *> getFP $> Nothing
+                0 -> do
+                  void (traceShow "Module:" getModule)
+                  void getFP
+                  void getBool
+                  pure Nothing
+
+                1 -> do
+                    void (traceShow "Home module:" (getCachedBS d))
+                    void getFP
+                    void (getMaybe getFP)
+                    void (getList (getTuple (getWord8 *> getCachedBS d) getFP))
+                    void getBool
+                    pure Nothing
+
+                2 -> do
+                  file_path  <- traceShow "File:" getString
+                  _file_hash <- traceShow "FP:" getFP'
+                  when (version >= V9041) $ do
+                    _file_label <- traceShow "File label:" (getMaybe getString)
+                    pure ()
+                  pure (Just (Usage file_path))
+
+                3 -> do
+                  void getModule
+                  void getFP
+                  pure Nothing
+
+                4 | version >= V9041 -> do -- UsageHomeModuleInterface
+                  _mod_name   <- void (getCachedBS d)
+                  _iface_hash <- void getFP
+                  pure Nothing
+
                 _ -> fail $ "Invalid usageType: " <> show usageType
 
 getInterface :: Get Interface
@@ -561,12 +641,29 @@ getInterface = do
     version <- getString
     traceGet ("Version: " ++ version)
 
+    let !ifaceVersion
+          | version >= "9041" = V9041
+          | version >= "9001" = V9001
+          | version >= "8101" = V8101
+          | version >= "8061" = V8061
+          | version >= "8041" = V8041
+          | version >= "8021" = V8021
+          | version >= "8001" = V8001
+          | version >= "7081" = V7081
+          | version >= "7061" = V7061
+          | version >= "7041" = V7041
+          | version >= "7021" = V7021
+          | otherwise         = error $ "Unsupported version: " <> version
+
     -- way
     way <- getString
     traceGet ("Ways: " ++ show way)
 
-    -- extensible fields (GHC > 9.0)
-    when (version >= "9001") $ void getPtr
+    -- source hash (GHC >= 9.4)
+    when (ifaceVersion >= V9041) $ void getFP
+
+    -- extensible fields (GHC >= 9.0)
+    when (ifaceVersion >= V9001) $ void getPtr
 
     -- dict_ptr
     dictPtr <- getPtr
@@ -577,20 +674,19 @@ getInterface = do
 
     -- symtable_ptr
     void getPtr
-    let versions =
-            [ ("8101", getInterface8101)
-            , ("8061", getInterface861)
-            , ("8041", getInterface841)
-            , ("8021", getInterface821)
-            , ("8001", getInterface801)
-            , ("7081", getInterface781)
-            , ("7061", getInterface761)
-            , ("7041", getInterface741)
-            , ("7021", getInterface721)
-            ]
-    case snd <$> find ((version >=) . fst) versions of
-        Just f  -> f dict
-        Nothing -> fail $ "Unsupported version: " <> version
+
+    case ifaceVersion of
+      V9041 -> getInterfaceRecent ifaceVersion dict
+      V9001 -> getInterfaceRecent ifaceVersion dict
+      V8101 -> getInterfaceRecent ifaceVersion dict
+      V8061 -> getInterface861 dict
+      V8041 -> getInterface841 dict
+      V8021 -> getInterface821 dict
+      V8001 -> getInterface801 dict
+      V7081 -> getInterface781 dict
+      V7061 -> getInterface761 dict
+      V7041 -> getInterface741 dict
+      V7021 -> getInterface721 dict
 
 
 fromFile :: FilePath -> IO (Either String Interface)
