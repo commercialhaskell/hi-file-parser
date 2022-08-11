@@ -1,5 +1,9 @@
 # Changelog for hi-file-parser
 
+## Unreleased
+
+Allow dependency on `mtl` >= 2.3.
+
 ## 0.1.2.0
 
 Add support for GHC 8.10 and 9.0 [#2](https://github.com/commercialhaskell/hi-file-parser/pull/2)
