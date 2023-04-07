@@ -7,8 +7,8 @@ on:
     - master
   workflow_dispatch:
 
-# As of 11 August 2022, ubuntu-latest, windows-latest and macos-latest come with
-# Stack 2.7.5.
+# As of 7 April 2023, ubuntu-latest, windows-latest and macos-latest come with
+# Stack 2.9.3.
 
 jobs:
   tests:
@@ -25,7 +25,8 @@ jobs:
         - stack-ghc-8.8.4.yaml
         - stack-ghc-8.10.7.yaml
         - stack-ghc-9.0.2.yaml
-        - stack-ghc-9.2.4.yaml
+        - stack-ghc-9.2.7.yaml
+        - stack-ghc-9.4.4.yaml
     steps:
     - name: Clone project
       uses: actions/checkout@v3

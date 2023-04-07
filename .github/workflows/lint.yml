@@ -20,9 +20,8 @@ jobs:
     - name: Set up HLint
       uses: haskell/actions/hlint-setup@v2
       with:
-        version: "3.4"
+        version: "3.5"
     - name: Apply HLint
-      uses: haskell/actions/hlint-run@v2
-      with:
-        path: src/
-        fail-on: warning
+      run: |
+        set -ex
+        hlint src/
