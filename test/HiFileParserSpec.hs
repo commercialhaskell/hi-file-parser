@@ -14,26 +14,28 @@ type Directory = FilePath
 type Usage = String
 type Module = ByteString
 
+-- | GHC x.y.z is represented as \"ghcxyyz\" where yy is padded with zeros.
 versions32 :: [Version]
 versions32 =
-  [ "ghc7103"
-  , "ghc802"
-  , "ghc822"
-  , "ghc844"
+  [ "ghc7103"  -- Last in GHC 7.10 series, using GHC 7.8.1 format
+  , "ghc8002"  -- Last in GHC 8.0 series, using GHC 8.0.1 format
+  , "ghc8022"  -- Last in GHC 8.2 series, using GHC 8.2.1 format
+  , "ghc8044"  -- Last in GHC 8.4 series, using GHC 8.4.1 format
   ]
 
+-- | GHC x.y.z is represented as \"ghcxyyz\" where yy is padded with zeros.
 versions64 :: [Version]
 versions64 =
-  [ "ghc822"
-  , "ghc844"
-  , "ghc864"
-  , "ghc884"
-  , "ghc8104"
-  , "ghc901"
-  , "ghc9023"
-  , "ghc9041"
-  , "ghc9045"
-  , "ghc9061"
+  [ "ghc8022"  -- Last in GHC 8.2 series, using GHC 8.0.1 format
+  , "ghc8044"  -- Last in GHC 8.4 series, using GHC 8.4.1 format
+  , "ghc8064"  -- Using GHC 8.6.1 format
+  , "ghc8084"  -- Last in GHC 8.8 series, using GHC 8.6.1 format
+  , "ghc8104"  -- Using GHC 8.10.1 format
+  , "ghc9001"  -- First using GHC 9.0.1 format
+  , "ghc9027"  -- Last in GHC 9.2 series
+  , "ghc9044"  -- Last using GHC 9.4.1 format
+  , "ghc9045"  -- First using GHC 9.4.5 format; last in GHC 9.4 series
+  , "ghc9061"  -- First/last in GHC 9.6 series
   ]
 
 spec :: Spec
