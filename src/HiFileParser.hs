@@ -63,6 +63,7 @@ data IfaceVersion
   | V8101
   | V9001
   | V9041
+  | V9045
   deriving (Show,Eq,Ord,Enum)
   -- careful, the Ord matters!
 
@@ -205,6 +206,10 @@ getDictionary ptr = do
     traceGet ("Dictionary: " ++ show dict)
     return dict
 
+-- | Get a FastString
+--
+-- FastStrings are stored in a global FastString table and only the index (a
+-- Word32be) is stored at the expected position.
 getCachedBS :: Dictionary -> Get ByteString
 getCachedBS d = go =<< traceShow "Dict index:" getWord32be
   where
@@ -515,6 +520,8 @@ getInterfaceRecent version d = do
     dusage <- traceShow "Usage:"        getUsage
     pure (Interface ddeps dusage)
   where
+    since v = when (version >= v)
+
     getModule = do
         idType <- traceShow "Unit type:" getWord8
         case idType of
@@ -566,40 +573,42 @@ getInterfaceRecent version d = do
 
     getUsage = withBlockPrefix $ List . catMaybes . unList <$> getList go
       where
+        -- this must follow the `Binary Usage` instance in GHC
+        -- (in GHC.Unit.Module.Deps, at least in GHC 9.4.5)
         go :: Get (Maybe Usage)
         go = do
             usageType <- traceShow "Usage type:" getWord8
             case usageType of
                 0 -> do
-                  void (traceShow "Module:" getModule)
-                  void getFP
-                  void getBool
+                  void (traceShow "Module:" getModule) -- usg_mod
+                  void getFP                           -- usg_mod_hash
+                  void getBool                         -- usg_safe
                   pure Nothing
 
                 1 -> do
-                    void (traceShow "Home module:" (getCachedBS d))
-                    void getFP
-                    void (getMaybe getFP)
-                    void (getList (getTuple (getWord8 *> getCachedBS d) getFP))
-                    void getBool
+                    void (traceShow "Home module:" (getCachedBS d)) -- usg_mod_name
+                    since V9045 $ void (getCachedBS d)              -- usg_unit_id
+                    void getFP                                      -- usg_mod_hash
+                    void (getMaybe getFP)                           -- usg_exports
+                    void (getList (getTuple (getWord8 *> getCachedBS d) getFP)) -- usg_entities
+                    void getBool                                    -- usg_safe
                     pure Nothing
 
                 2 -> do
-                  file_path  <- traceShow "File:" getString
-                  _file_hash <- traceShow "FP:" getFP'
-                  when (version >= V9041) $ do
-                    _file_label <- traceShow "File label:" (getMaybe getString)
-                    pure ()
+                  file_path  <- traceShow "File:" getString         -- usg_file_path
+                  void $ traceShow "FP:" getFP'                     -- usg_file_hash
+                  since V9041 $ void $ traceShow "File label:" (getMaybe getString)-- usg_file_label
                   pure (Just (Usage file_path))
 
                 3 -> do
-                  void getModule
-                  void getFP
+                  void getModule -- usg_mod
+                  void getFP     -- usg_mod_hash
                   pure Nothing
 
                 4 | version >= V9041 -> do -- UsageHomeModuleInterface
-                  _mod_name   <- void (getCachedBS d)
-                  _iface_hash <- void getFP
+                  void (getCachedBS d)                -- usg_mod_name
+                  since V9045 $ void (getCachedBS d)  -- usg_unit_id
+                  void getFP                          -- usg_iface_hash
                   pure Nothing
 
                 _ -> fail $ "Invalid usageType: " <> show usageType
@@ -641,6 +650,7 @@ getInterface = do
     traceGet ("Version: " ++ version)
 
     let !ifaceVersion
+          | version >= "9045" = V9045
           | version >= "9041" = V9041
           | version >= "9001" = V9001
           | version >= "8101" = V8101
@@ -675,6 +685,7 @@ getInterface = do
     void getPtr
 
     case ifaceVersion of
+      V9045 -> getInterfaceRecent ifaceVersion dict
       V9041 -> getInterfaceRecent ifaceVersion dict
       V9001 -> getInterfaceRecent ifaceVersion dict
       V8101 -> getInterfaceRecent ifaceVersion dict
