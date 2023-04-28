@@ -26,7 +26,8 @@ jobs:
         - stack-ghc-8.10.7.yaml
         - stack-ghc-9.0.2.yaml
         - stack-ghc-9.2.7.yaml
-        - stack-ghc-9.4.4.yaml
+        - stack-ghc-9.4.5.yaml
+        - stack-ghc-9.6.1.yaml
     steps:
     - name: Clone project
       uses: actions/checkout@v3

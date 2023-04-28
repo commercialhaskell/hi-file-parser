@@ -27,14 +27,14 @@ extra-source-files:
     test-files/iface/x64/ghc8022/X.hi
     test-files/iface/x64/ghc8044/Main.hi
     test-files/iface/x64/ghc8044/X.hi
-    test-files/iface/x64/ghc8064/Main.hi
-    test-files/iface/x64/ghc8064/X.hi
+    test-files/iface/x64/ghc8065/Main.hi
+    test-files/iface/x64/ghc8065/X.hi
     test-files/iface/x64/ghc8084/Main.hi
     test-files/iface/x64/ghc8084/X.hi
-    test-files/iface/x64/ghc8104/Main.hi
-    test-files/iface/x64/ghc8104/X.hi
-    test-files/iface/x64/ghc9001/Main.hi
-    test-files/iface/x64/ghc9001/X.hi
+    test-files/iface/x64/ghc8107/Main.hi
+    test-files/iface/x64/ghc8107/X.hi
+    test-files/iface/x64/ghc9002/Main.hi
+    test-files/iface/x64/ghc9002/X.hi
     test-files/iface/x64/ghc9027/Main.hi
     test-files/iface/x64/ghc9027/X.hi
     test-files/iface/x64/ghc9044/Main.hi
