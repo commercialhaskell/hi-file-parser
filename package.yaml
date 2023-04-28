@@ -8,26 +8,30 @@ maintainer: michael@snoyman.com
 extra-source-files:
 - README.md
 - ChangeLog.md
-- test-files/iface/x64/ghc844/Main.hi
-- test-files/iface/x64/ghc844/X.hi
-- test-files/iface/x64/ghc822/Main.hi
-- test-files/iface/x64/ghc822/X.hi
-- test-files/iface/x64/ghc864/Main.hi
-- test-files/iface/x64/ghc864/X.hi
-- test-files/iface/x64/ghc884/Main.hi
-- test-files/iface/x64/ghc884/X.hi
+- test-files/iface/x32/ghc7103/Main.hi
+- test-files/iface/x32/ghc8002/Main.hi
+- test-files/iface/x32/ghc8022/Main.hi
+- test-files/iface/x32/ghc8044/Main.hi
+- test-files/iface/x64/ghc8022/Main.hi
+- test-files/iface/x64/ghc8022/X.hi
+- test-files/iface/x64/ghc8044/Main.hi
+- test-files/iface/x64/ghc8044/X.hi
+- test-files/iface/x64/ghc8064/Main.hi
+- test-files/iface/x64/ghc8064/X.hi
+- test-files/iface/x64/ghc8084/Main.hi
+- test-files/iface/x64/ghc8084/X.hi
 - test-files/iface/x64/ghc8104/Main.hi
 - test-files/iface/x64/ghc8104/X.hi
-- test-files/iface/x64/ghc901/Main.hi
-- test-files/iface/x64/ghc901/X.hi
-- test-files/iface/x64/ghc9023/Main.hi
-- test-files/iface/x64/ghc9023/X.hi
-- test-files/iface/x64/ghc9041/Main.hi
-- test-files/iface/x64/ghc9041/X.hi
-- test-files/iface/x32/ghc844/Main.hi
-- test-files/iface/x32/ghc802/Main.hi
-- test-files/iface/x32/ghc7103/Main.hi
-- test-files/iface/x32/ghc822/Main.hi
+- test-files/iface/x64/ghc9001/Main.hi
+- test-files/iface/x64/ghc9001/X.hi
+- test-files/iface/x64/ghc9027/Main.hi
+- test-files/iface/x64/ghc9027/X.hi
+- test-files/iface/x64/ghc9044/Main.hi
+- test-files/iface/x64/ghc9044/X.hi
+- test-files/iface/x64/ghc9045/Main.hi
+- test-files/iface/x64/ghc9045/X.hi
+- test-files/iface/x64/ghc9061/Main.hi
+- test-files/iface/x64/ghc9061/X.hi
 
 # Metadata used when publishing your package
 synopsis: Parser for GHC's hi files
