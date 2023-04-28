@@ -32,6 +32,7 @@ versions64 =
   , "ghc901"
   , "ghc9023"
   , "ghc9041"
+  , "ghc9045"
   ]
 
 spec :: Spec
