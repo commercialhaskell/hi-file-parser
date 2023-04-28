@@ -28,14 +28,14 @@ versions64 :: [Version]
 versions64 =
   [ "ghc8022"  -- Last in GHC 8.2 series, using GHC 8.0.1 format
   , "ghc8044"  -- Last in GHC 8.4 series, using GHC 8.4.1 format
-  , "ghc8064"  -- Using GHC 8.6.1 format
+  , "ghc8065"  -- Last in GHC 8.6 series, using GHC 8.6.1 format
   , "ghc8084"  -- Last in GHC 8.8 series, using GHC 8.6.1 format
-  , "ghc8104"  -- Using GHC 8.10.1 format
-  , "ghc9001"  -- First using GHC 9.0.1 format
-  , "ghc9027"  -- Last in GHC 9.2 series
+  , "ghc8107"  -- Last in GHC 8.10 series, using GHC 8.10.1 format
+  , "ghc9002"  -- Last in GHC 9.0 series, using GHC 9.0.1 format
+  , "ghc9027"  -- Last in GHC 9.2 series, using GHC 9.0.1 format
   , "ghc9044"  -- Last using GHC 9.4.1 format
   , "ghc9045"  -- First using GHC 9.4.5 format; last in GHC 9.4 series
-  , "ghc9061"  -- First/last in GHC 9.6 series
+  , "ghc9061"  -- Last in GHC 9.6 series, using GHC 9.4.5 format
   ]
 
 spec :: Spec
