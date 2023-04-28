@@ -6,11 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to the
 [Haskell Package Versioning Policy](https://pvp.haskell.org/).
 
+## 0.1.4.0 - 2023-04-28
+
+* Add further support for GHC 9.4 (GHC 9.4.5 onward) and support for GHC 9.6.
+  See [#14](https://github.com/commercialhaskell/hi-file-parser/pull/14)
+
 ## 0.1.3.0 - 2022-08-12
 
 * Allow dependency on `mtl` >= 2.3. See
   [#6](https://github.com/commercialhaskell/hi-file-parser/pull/6)
-* Add support for GHC 9.4. See
+* Add support for GHC 9.4 (up to GHC 9.4.4). See
   [#7](https://github.com/commercialhaskell/hi-file-parser/pull/7)
 
 ## 0.1.2.0 - 2021-04-09
