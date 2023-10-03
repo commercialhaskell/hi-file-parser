@@ -49,6 +49,7 @@ dependencies:
 - rio
 - vector
 - mtl
+- text
 
 ghc-options:
 - -Wall
