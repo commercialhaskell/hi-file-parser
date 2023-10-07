@@ -35,6 +35,8 @@ import           Data.Maybe                    (catMaybes)
 import           Data.Semigroup                ((<>))
 #endif
 import qualified Data.Vector                   as V
+import qualified Data.Text.Encoding            as Text
+import qualified Data.Text                     as Text
 import           GHC.IO.IOMode                 (IOMode (..))
 import           Numeric                       (showHex)
 import           RIO.ByteString                as B (ByteString, hGetSome, null)
@@ -64,6 +66,7 @@ data IfaceVersion
   | V9001
   | V9041
   | V9045
+  | V9080
   deriving (Show,Eq,Ord,Enum)
   -- careful, the Ord matters!
 
@@ -522,15 +525,17 @@ getInterfaceRecent version d = do
   where
     since v = when (version >= v)
 
+    getFastString = getCachedBS d
+
     getModule = do
         idType <- traceShow "Unit type:" getWord8
         case idType of
-            0 -> void $ getCachedBS d
+            0 -> void getFastString
             1 ->
                 void $
-                getCachedBS d *> getList (getTuple (getCachedBS d) getModule)
+                getFastString *> getList (getTuple getFastString getModule)
             _ -> fail $ "Invalid unit type: " <> show idType
-        Module <$> getCachedBS d
+        Module <$> getFastString
     getDependencies =
         withBlockPrefix $ do
           if version >= V9041
@@ -539,22 +544,22 @@ getInterfaceRecent version d = do
               -- only direct imports!
               -- Modules are now prefixed with their UnitId (should have been
               -- ModuleWithIsBoot...)
-              direct_mods <- traceShow "direct_mods:" $ getList (getCachedBS d *> getTuple (getCachedBS d) getBool)
-              direct_pkgs <- getList (getCachedBS d)
+              direct_mods <- traceShow "direct_mods:" $ getList (getFastString *> getTuple getFastString getBool)
+              direct_pkgs <- getList getFastString
 
               -- plugin packages are now stored separately
-              plugin_pkgs <- getList (getCachedBS d)
+              plugin_pkgs <- getList getFastString
               let all_pkgs = unList plugin_pkgs ++ unList direct_pkgs
 
               -- instead of a trust bool for each unit, we have an additional
               -- list of trusted units (transitive)
-              trusted_pkgs <- getList (getCachedBS d)
+              trusted_pkgs <- getList getFastString
               let trusted u = u `elem` unList trusted_pkgs
               let all_pkgs_trust = List (zip all_pkgs (map trusted all_pkgs))
 
               -- these are new
               _sig_mods  <- getList getModule
-              _boot_mods <- getList (getCachedBS d *> getTuple (getCachedBS d) getBool)
+              _boot_mods <- getList (getFastString *> getTuple getFastString getBool)
 
               dep_orphs  <- getList getModule
               dep_finsts <- getList getModule
@@ -564,11 +569,11 @@ getInterfaceRecent version d = do
 
               pure (Dependencies direct_mods all_pkgs_trust dep_orphs dep_finsts dep_plgins)
             else do
-              dep_mods   <- getList (getTuple (getCachedBS d) getBool)
-              dep_pkgs   <- getList (getTuple (getCachedBS d) getBool)
+              dep_mods   <- getList (getTuple getFastString getBool)
+              dep_pkgs   <- getList (getTuple getFastString getBool)
               dep_orphs  <- getList getModule
               dep_finsts <- getList getModule
-              dep_plgins <- getList (getCachedBS d)
+              dep_plgins <- getList getFastString
               pure (Dependencies dep_mods dep_pkgs dep_orphs dep_finsts dep_plgins)
 
     getUsage = withBlockPrefix $ List . catMaybes . unList <$> getList go
@@ -586,16 +591,19 @@ getInterfaceRecent version d = do
                   pure Nothing
 
                 1 -> do
-                    void (traceShow "Home module:" (getCachedBS d)) -- usg_mod_name
-                    since V9045 $ void (getCachedBS d)              -- usg_unit_id
+                    void (traceShow "Home module:" getFastString)   -- usg_mod_name
+                    since V9045 $ void getFastString                -- usg_unit_id
                     void getFP                                      -- usg_mod_hash
                     void (getMaybe getFP)                           -- usg_exports
-                    void (getList (getTuple (getWord8 *> getCachedBS d) getFP)) -- usg_entities
+                    void (getList (getTuple (getWord8 *> getFastString) getFP)) -- usg_entities
                     void getBool                                    -- usg_safe
                     pure Nothing
 
                 2 -> do
-                  file_path  <- traceShow "File:" getString         -- usg_file_path
+                  -- usg_file_path
+                  file_path  <- traceShow "File:" $ if version >= V9080
+                    then Text.unpack . Text.decodeUtf8 <$> getFastString
+                    else getString
                   void $ traceShow "FP:" getFP'                     -- usg_file_hash
                   since V9041 $ void $ traceShow "File label:" (getMaybe getString)-- usg_file_label
                   pure (Just (Usage file_path))
@@ -606,8 +614,8 @@ getInterfaceRecent version d = do
                   pure Nothing
 
                 4 | version >= V9041 -> do -- UsageHomeModuleInterface
-                  void (getCachedBS d)                -- usg_mod_name
-                  since V9045 $ void (getCachedBS d)  -- usg_unit_id
+                  void getFastString                  -- usg_mod_name
+                  since V9045 $ void getFastString    -- usg_unit_id
                   void getFP                          -- usg_iface_hash
                   pure Nothing
 
@@ -650,6 +658,7 @@ getInterface = do
     traceGet ("Version: " ++ version)
 
     let !ifaceVersion
+          | version >= "9080" = V9080
           | version >= "9045" = V9045
           | version >= "9041" = V9041
           | version >= "9001" = V9001
@@ -685,6 +694,7 @@ getInterface = do
     void getPtr
 
     case ifaceVersion of
+      V9080 -> getInterfaceRecent ifaceVersion dict
       V9045 -> getInterfaceRecent ifaceVersion dict
       V9041 -> getInterfaceRecent ifaceVersion dict
       V9001 -> getInterfaceRecent ifaceVersion dict
