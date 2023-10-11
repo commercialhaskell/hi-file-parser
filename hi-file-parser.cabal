@@ -1,11 +1,11 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.2.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           hi-file-parser
-version:        0.1.4.0
+version:        0.1.5.0
 synopsis:       Parser for GHC's hi files
 description:    Please see the README on Github at <https://github.com/commercialhaskell/hi-file-parser/blob/master/README.md>
 category:       Development
@@ -39,10 +39,12 @@ extra-source-files:
     test-files/iface/x64/ghc9027/X.hi
     test-files/iface/x64/ghc9044/Main.hi
     test-files/iface/x64/ghc9044/X.hi
-    test-files/iface/x64/ghc9045/Main.hi
-    test-files/iface/x64/ghc9045/X.hi
-    test-files/iface/x64/ghc9061/Main.hi
-    test-files/iface/x64/ghc9061/X.hi
+    test-files/iface/x64/ghc9047/Main.hi
+    test-files/iface/x64/ghc9047/X.hi
+    test-files/iface/x64/ghc9063/Main.hi
+    test-files/iface/x64/ghc9063/X.hi
+    test-files/iface/x64/ghc9081/Main.hi
+    test-files/iface/x64/ghc9081/X.hi
 
 source-repository head
   type: git
