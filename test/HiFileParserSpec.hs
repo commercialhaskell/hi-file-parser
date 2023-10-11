@@ -3,8 +3,6 @@
 
 module HiFileParserSpec (spec) where
 
-import           Data.Foldable         (traverse_)
-import           Data.Semigroup        ((<>))
 import qualified HiFileParser          as Iface
 import           RIO
 import           Test.Hspec            (Spec, describe, it, shouldBe)
@@ -34,15 +32,15 @@ versions64 =
   , "ghc9002"  -- Last in GHC 9.0 series, using GHC 9.0.1 format
   , "ghc9027"  -- Last in GHC 9.2 series, using GHC 9.0.1 format
   , "ghc9044"  -- Last using GHC 9.4.1 format
-  , "ghc9045"  -- First using GHC 9.4.5 format; last in GHC 9.4 series
-  , "ghc9061"  -- First in GHC 9.6 series, using GHC 9.4.5 format
-  , "ghc9081"  -- First in GHC 9.8 series, using GHC 9.8.1-alpha1 format
+  , "ghc9047"  -- Last in GHC 9.4 series, using GHC 9.4.5 format
+  , "ghc9063"  -- Last in GHC 9.6 series, using GHC 9.4.5 format
+  , "ghc9081"  -- First in GHC 9.8 series, using GHC 9.8.1 format
   ]
 
 spec :: Spec
 spec = describe "should successfully deserialize interface for" $ do
-   traverse_ (deserialize check32) (("x32/" <>) <$> versions32)
-   traverse_ (deserialize check64) (("x64/" <>) <$> versions64)
+   traverse_ (deserialize check32 . ("x32/" <>)) versions32
+   traverse_ (deserialize check64 . ("x64/" <>)) versions64
 
 check32 :: Iface.Interface -> IO ()
 check32 iface = do

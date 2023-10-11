@@ -66,7 +66,7 @@ data IfaceVersion
   | V9001
   | V9041
   | V9045
-  | V9080
+  | V9081
   deriving (Show,Eq,Ord,Enum)
   -- careful, the Ord matters!
 
@@ -601,7 +601,7 @@ getInterfaceRecent version d = do
 
                 2 -> do
                   -- usg_file_path
-                  file_path  <- traceShow "File:" $ if version >= V9080
+                  file_path  <- traceShow "File:" $ if version >= V9081
                     then Text.unpack . Text.decodeUtf8 <$> getFastString
                     else getString
                   void $ traceShow "FP:" getFP'                     -- usg_file_hash
@@ -658,7 +658,7 @@ getInterface = do
     traceGet ("Version: " ++ version)
 
     let !ifaceVersion
-          | version >= "9080" = V9080
+          | version >= "9081" = V9081
           | version >= "9045" = V9045
           | version >= "9041" = V9041
           | version >= "9001" = V9001
@@ -694,7 +694,7 @@ getInterface = do
     void getPtr
 
     case ifaceVersion of
-      V9080 -> getInterfaceRecent ifaceVersion dict
+      V9081 -> getInterfaceRecent ifaceVersion dict
       V9045 -> getInterfaceRecent ifaceVersion dict
       V9041 -> getInterfaceRecent ifaceVersion dict
       V9001 -> getInterfaceRecent ifaceVersion dict

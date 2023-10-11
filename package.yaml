@@ -1,5 +1,5 @@
 name: hi-file-parser
-version: 0.1.4.0
+version: 0.1.5.0
 github: commercialhaskell/hi-file-parser
 license: BSD3
 author: Hussein Ait-Lahcen
@@ -28,10 +28,12 @@ extra-source-files:
 - test-files/iface/x64/ghc9027/X.hi
 - test-files/iface/x64/ghc9044/Main.hi
 - test-files/iface/x64/ghc9044/X.hi
-- test-files/iface/x64/ghc9045/Main.hi
-- test-files/iface/x64/ghc9045/X.hi
-- test-files/iface/x64/ghc9061/Main.hi
-- test-files/iface/x64/ghc9061/X.hi
+- test-files/iface/x64/ghc9047/Main.hi
+- test-files/iface/x64/ghc9047/X.hi
+- test-files/iface/x64/ghc9063/Main.hi
+- test-files/iface/x64/ghc9063/X.hi
+- test-files/iface/x64/ghc9081/Main.hi
+- test-files/iface/x64/ghc9081/X.hi
 
 # Metadata used when publishing your package
 synopsis: Parser for GHC's hi files
