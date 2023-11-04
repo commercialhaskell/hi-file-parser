@@ -595,7 +595,7 @@ getInterfaceRecent version d = do
                     since V9045 $ void getFastString                -- usg_unit_id
                     void getFP                                      -- usg_mod_hash
                     void (getMaybe getFP)                           -- usg_exports
-                    void (getList (getTuple (getWord8 *> getFastString) getFP)) -- usg_entities
+                    void getEntitiesList                            -- usg_entities
                     void getBool                                    -- usg_safe
                     pure Nothing
 
@@ -620,6 +620,27 @@ getInterfaceRecent version d = do
                   pure Nothing
 
                 _ -> fail $ "Invalid usageType: " <> show usageType
+
+    getEntitiesList :: Get (List (ByteString, ()))
+    getEntitiesList = getList (getTuple (getNameSpace *> getFastString) getFP)
+
+    -- See `instance Binary NameSpace` in module GHC.Types.Name.Occurrence. We
+    -- discard the information.
+    getNameSpace :: Get ()
+    getNameSpace = if version >= V9081
+      then do
+        nameSpaceType <- getWord8
+        case nameSpaceType of
+          0 -> pure ()
+          1 -> pure ()
+          2 -> pure ()
+          3 -> pure ()
+          -- Unlike the original, we test that the byte we have obtained is
+          -- valid.
+          4 -> do
+            void getFastString
+          _ -> fail $ "Invalid NameSpace type: " <> show nameSpaceType
+      else void getWord8
 
 getInterface :: Get Interface
 getInterface = do
