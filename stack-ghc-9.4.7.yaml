@@ -1,5 +1,5 @@
 # GHC 9.4.7
-resolver: lts-21.15
+snapshot: lts-21.15
 
 flags:
   ansi-terminal:
