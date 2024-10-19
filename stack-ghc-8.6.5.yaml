@@ -1,2 +1,2 @@
 # GHC 8.6.5
-resolver: lts-14.27
+snapshot: lts-14.27
