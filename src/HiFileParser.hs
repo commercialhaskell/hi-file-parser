@@ -67,6 +67,7 @@ data IfaceVersion
   | V9041
   | V9045
   | V9081
+  | V9120
   deriving (Show,Eq,Ord,Enum)
   -- careful, the Ord matters!
 
@@ -645,6 +646,12 @@ getInterfaceRecent version d = do
 getInterface :: Get Interface
 getInterface = do
     let enableLEB128 = modify (\c -> c { useLEB128 = True})
+    -- read a relative bin pointer
+    let getRelPtr = do
+          c <- bytesRead
+          p <- getPtr
+          pure (fromIntegral c + p)
+          
 
     magic <- lookAhead getWord32be >>= \case
         -- normal magic
@@ -679,6 +686,7 @@ getInterface = do
     traceGet ("Version: " ++ version)
 
     let !ifaceVersion
+          | version >= "9120" = V9120
           | version >= "9081" = V9081
           | version >= "9045" = V9045
           | version >= "9041" = V9041
@@ -705,7 +713,9 @@ getInterface = do
     when (ifaceVersion >= V9001) $ void getPtr
 
     -- dict_ptr
-    dictPtr <- getPtr
+    dictPtr <- if ifaceVersion >= V9120 -- 9.12 uses relative pointers
+      then getRelPtr
+      else getPtr
     traceGet ("Dict ptr: " ++ show dictPtr)
 
     -- dict
@@ -714,7 +724,12 @@ getInterface = do
     -- symtable_ptr
     void getPtr
 
+    -- IfaceType table
+    when (ifaceVersion >= V9120) $
+      void getPtr
+
     case ifaceVersion of
+      V9120 -> getInterfaceRecent ifaceVersion dict
       V9081 -> getInterfaceRecent ifaceVersion dict
       V9045 -> getInterfaceRecent ifaceVersion dict
       V9041 -> getInterfaceRecent ifaceVersion dict
