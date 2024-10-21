@@ -30,11 +30,12 @@ versions64 =
   , "ghc8084"  -- Last in GHC 8.8 series, using GHC 8.6.1 format
   , "ghc8107"  -- Last in GHC 8.10 series, using GHC 8.10.1 format
   , "ghc9002"  -- Last in GHC 9.0 series, using GHC 9.0.1 format
-  , "ghc9027"  -- Last in GHC 9.2 series, using GHC 9.0.1 format
+  , "ghc9028"  -- Last in GHC 9.2 series, using GHC 9.0.1 format
   , "ghc9044"  -- Last using GHC 9.4.1 format
   , "ghc9047"  -- Last in GHC 9.4 series, using GHC 9.4.5 format
-  , "ghc9063"  -- Last in GHC 9.6 series, using GHC 9.4.5 format
-  , "ghc9081"  -- First in GHC 9.8 series, using GHC 9.8.1 format
+  , "ghc9066"  -- Last in GHC 9.6 series, using GHC 9.4.5 format
+  , "ghc9083"  -- Last in GHC 9.8 series, using GHC 9.8.1 format
+  , "ghc9101"  -- Last in GHC 9.10 series, using GHC 9.8.1 format
   , "ghc9120"  -- First in GHC 9.12 series, using GHC 9.12 format
   ]
 

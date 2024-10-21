@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to the
 [Haskell Package Versioning Policy](https://pvp.haskell.org/).
 
+## 0.1.7.0 - 2024-10-21
+
+* Add support for GHC 9.12 (GHC 9.12.1 onward). See
+  [#23](https://github.com/commercialhaskell/hi-file-parser/pull/23)
+
 ## 0.1.6.0 - 2023-11-04
 
 * Add further support for GHC 9.8 (GHC 9.8.1 onward). See
