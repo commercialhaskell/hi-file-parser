@@ -1,9 +1,14 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant multi-way if" #-}
+{-# HLINT ignore "Reduce duplication"     #-}
+
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE MultiWayIf                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 
 module HiFileParser
@@ -16,8 +21,6 @@ module HiFileParser
   , getInterface
   , fromFile
   ) where
-
-{- HLINT ignore "Reduce duplication" -}
 
 import           Control.Monad ( replicateM, replicateM_, when )
 import           Data.Binary ( Word32, Word64, Word8)
@@ -69,12 +72,14 @@ data IfaceVersion
   | V9045
   | V9081
   | V9120
+  | V9140
   deriving (Eq, Enum, Ord, Show)
   -- careful, the Ord matters!
 
 
 type Get a = StateT IfaceGetState G.Get a
 
+-- | Change this to 'True' to enable debugging.
 enableDebug :: Bool
 enableDebug = False
 
@@ -101,6 +106,10 @@ getByteString i = lift (G.getByteString i)
 
 getWord8 :: Get Word8
 getWord8 = lift G.getWord8
+
+-- | Like 'getWord8' but we discard the information.
+skipWord8 :: Get ()
+skipWord8 = void getWord8
 
 bytesRead :: Get Int64
 bytesRead = lift G.bytesRead
@@ -129,6 +138,10 @@ lookAhead g = do
 
 getPtr :: Get Word32
 getPtr = lift G.getWord32be
+
+-- | Like 'getPtr' but we discard the information.
+skipPtr :: Get ()
+skipPtr = void getPtr
 
 type IsBoot = Bool
 
@@ -167,18 +180,42 @@ data Interface = Interface
 
 instance NFData Interface
 
+-- | The 'String' is for debugging messages. Provided for consistency with
+-- 'skipWith'.
+with :: Show a => String -> Get a -> Get a
+with = traceShow
+
+-- | Like 'with' but we discard the information.
+skipWith :: Show a => String -> Get a -> Get ()
+skipWith s = void . traceShow s 
+
 -- | Read a block prefixed with its length
 withBlockPrefix :: Get a -> Get a
 withBlockPrefix f = getPtr *> f
 
+-- | Skip a block prefixed with its length. The 'String' is for debugging
+-- messages
+skipWithBlockPrefix :: String -> Get ()
+skipWithBlockPrefix s = do
+  l <- traceShow (s <> ", skipping:") getPtr
+  skip (fromIntegral l - 4)
+
 getBool :: Get Bool
 getBool = toEnum . fromIntegral <$> getWord8
+
+-- | Like 'getBool' but we discard the information.
+skipBool :: Get ()
+skipBool = void getBool
 
 getString :: Get String
 getString = fmap (chr . fromIntegral) . unList <$> getList getWord32be
 
 getMaybe :: Get a -> Get (Maybe a)
 getMaybe f = bool (pure Nothing) (Just <$> f) =<< getBool
+
+-- | Like 'getMaybe' but we discard the information.
+skipMaybe :: Get a -> Get ()
+skipMaybe = void . getMaybe
 
 getList :: Get a -> Get (List a)
 getList f = do
@@ -194,6 +231,10 @@ getList f = do
           then getWord32be
           else pure (fromIntegral i :: Word32)
       List <$> replicateM (fromIntegral l) f
+
+-- | Like 'getList' but we discard the information.
+skipList :: Get a -> Get ()
+skipList = void . getList
 
 getTuple :: Get a -> Get b -> Get (a, b)
 getTuple f g = (,) <$> f <*> g
@@ -218,7 +259,7 @@ getDictionary ptr = do
 -- FastStrings are stored in a global FastString table and only the index (a
 -- Word32be) is stored at the expected position.
 getCachedBS :: Dictionary -> Get ByteString
-getCachedBS d = go =<< traceShow "Dict index:" getWord32be
+getCachedBS d = go =<< with "Dict index:" getWord32be
  where
   go i =
     case unDictionary d V.!? fromIntegral i of
@@ -226,22 +267,23 @@ getCachedBS d = go =<< traceShow "Dict index:" getWord32be
       Nothing -> fail $ "Invalid dictionary index: " <> show i
 
 -- | Get Fingerprint
-getFP' :: Get String
-getFP' = do
+getFP :: Get String
+getFP = do
   x <- getWord64be
   y <- getWord64be
   return (showHex x (showHex y ""))
 
-getFP :: Get ()
-getFP = void getFP'
+-- Like 'getFP' but we discard the information.
+skipFP :: Get ()
+skipFP = void getFP
 
 getInterface721 :: Dictionary -> Get Interface
 getInterface721 d = do
   void getModule
-  void getBool
-  replicateM_ 2 getFP
-  void getBool
-  void getBool
+  skipBool
+  replicateM_ 2 skipFP
+  skipBool
+  skipBool
   Interface <$> getDependencies <*> getUsage
  where
   getModule = getCachedBS d *> (Module <$> getCachedBS d)
@@ -258,20 +300,20 @@ getInterface721 d = do
     go = do
       usageType <- getWord8
       case usageType of
-        0 -> getModule *> getFP *> getBool $> Nothing
+        0 -> getModule *> skipFP*> getBool $> Nothing
         1 ->
-             getCachedBS d *> getFP *> getMaybe getFP *>
-             getList (getTuple (getWord8 *> getCachedBS d) getFP) *>
+             getCachedBS d *> skipFP*> getMaybe skipFP*>
+             getList (getTuple (getWord8 *> getCachedBS d) skipFP) *>
              getBool $> Nothing
         _ -> fail $ "Invalid usageType: " <> show usageType
 
 getInterface741 :: Dictionary -> Get Interface
 getInterface741 d = do
   void getModule
-  void getBool
-  replicateM_ 3 getFP
-  void getBool
-  void getBool
+  skipBool
+  replicateM_ 3 skipFP
+  skipBool
+  skipBool
   Interface <$> getDependencies <*> getUsage
  where
   getModule = getCachedBS d *> (Module <$> getCachedBS d)
@@ -288,10 +330,10 @@ getInterface741 d = do
     go = do
       usageType <- getWord8
       case usageType of
-        0 -> getModule *> getFP *> getBool $> Nothing
+        0 -> getModule *> skipFP*> getBool $> Nothing
         1 ->
-             getCachedBS d *> getFP *> getMaybe getFP *>
-             getList (getTuple (getWord8 *> getCachedBS d) getFP) *>
+             getCachedBS d *> skipFP*> getMaybe skipFP*>
+             getList (getTuple (getWord8 *> getCachedBS d) skipFP) *>
              getBool $> Nothing
         2 -> Just . Usage <$> getString <* getWord64be <* getWord64be
         _ -> fail $ "Invalid usageType: " <> show usageType
@@ -299,10 +341,10 @@ getInterface741 d = do
 getInterface761 :: Dictionary -> Get Interface
 getInterface761 d = do
   void getModule
-  void getBool
-  replicateM_ 3 getFP
-  void getBool
-  void getBool
+  skipBool
+  replicateM_ 3 skipFP
+  skipBool
+  skipBool
   Interface <$> getDependencies <*> getUsage
  where
   getModule = getCachedBS d *> (Module <$> getCachedBS d)
@@ -319,10 +361,10 @@ getInterface761 d = do
     go = do
       usageType <- getWord8
       case usageType of
-        0 -> getModule *> getFP *> getBool $> Nothing
+        0 -> getModule *> skipFP*> getBool $> Nothing
         1 ->
-             getCachedBS d *> getFP *> getMaybe getFP *>
-             getList (getTuple (getWord8 *> getCachedBS d) getFP) *>
+             getCachedBS d *> skipFP*> getMaybe skipFP*>
+             getList (getTuple (getWord8 *> getCachedBS d) skipFP) *>
              getBool $> Nothing
         2 -> Just . Usage <$> getString <* getWord64be <* getWord64be
         _ -> fail $ "Invalid usageType: " <> show usageType
@@ -330,10 +372,10 @@ getInterface761 d = do
 getInterface781 :: Dictionary -> Get Interface
 getInterface781 d = do
   void getModule
-  void getBool
-  replicateM_ 3 getFP
-  void getBool
-  void getBool
+  skipBool
+  replicateM_ 3 skipFP
+  skipBool
+  skipBool
   Interface <$> getDependencies <*> getUsage
  where
   getModule = getCachedBS d *> (Module <$> getCachedBS d)
@@ -350,21 +392,21 @@ getInterface781 d = do
     go = do
       usageType <- getWord8
       case usageType of
-        0 -> getModule *> getFP *> getBool $> Nothing
+        0 -> getModule *> skipFP*> getBool $> Nothing
         1 ->
-             getCachedBS d *> getFP *> getMaybe getFP *>
-             getList (getTuple (getWord8 *> getCachedBS d) getFP) *>
+             getCachedBS d *> skipFP*> getMaybe skipFP*>
+             getList (getTuple (getWord8 *> getCachedBS d) skipFP) *>
              getBool $> Nothing
-        2 -> Just . Usage <$> getString <* getFP
+        2 -> Just . Usage <$> getString <* skipFP
         _ -> fail $ "Invalid usageType: " <> show usageType
 
 getInterface801 :: Dictionary -> Get Interface
 getInterface801 d = do
   void getModule
-  void getWord8
-  replicateM_ 3 getFP
-  void getBool
-  void getBool
+  skipWord8
+  replicateM_ 3 skipFP
+  skipBool
+  skipBool
   Interface <$> getDependencies <*> getUsage
  where
   getModule = getCachedBS d *> (Module <$> getCachedBS d)
@@ -381,23 +423,23 @@ getInterface801 d = do
     go = do
       usageType <- getWord8
       case usageType of
-        0 -> getModule *> getFP *> getBool $> Nothing
+        0 -> getModule *> skipFP*> getBool $> Nothing
         1 ->
-             getCachedBS d *> getFP *> getMaybe getFP *>
-             getList (getTuple (getWord8 *> getCachedBS d) getFP) *>
+             getCachedBS d *> skipFP*> getMaybe skipFP*>
+             getList (getTuple (getWord8 *> getCachedBS d) skipFP) *>
              getBool $> Nothing
-        2 -> Just . Usage <$> getString <* getFP
-        3 -> getModule *> getFP $> Nothing
+        2 -> Just . Usage <$> getString <* skipFP
+        3 -> getModule *> skipFP$> Nothing
         _ -> fail $ "Invalid usageType: " <> show usageType
 
 getInterface821 :: Dictionary -> Get Interface
 getInterface821 d = do
   void getModule
-  void $ getMaybe getModule
-  void getWord8
-  replicateM_ 3 getFP
-  void getBool
-  void getBool
+  skipMaybe getModule
+  skipWord8
+  replicateM_ 3 skipFP
+  skipBool
+  skipBool
   Interface <$> getDependencies <*> getUsage
  where
   getModule = do
@@ -421,23 +463,23 @@ getInterface821 d = do
     go = do
       usageType <- getWord8
       case usageType of
-        0 -> getModule *> getFP *> getBool $> Nothing
+        0 -> getModule *> skipFP*> getBool $> Nothing
         1 ->
-             getCachedBS d *> getFP *> getMaybe getFP *>
-             getList (getTuple (getWord8 *> getCachedBS d) getFP) *>
+             getCachedBS d *> skipFP*> getMaybe skipFP*>
+             getList (getTuple (getWord8 *> getCachedBS d) skipFP) *>
              getBool $> Nothing
-        2 -> Just . Usage <$> getString <* getFP
-        3 -> getModule *> getFP $> Nothing
+        2 -> Just . Usage <$> getString <* skipFP
+        3 -> getModule *> skipFP$> Nothing
         _ -> fail $ "Invalid usageType: " <> show usageType
 
 getInterface841 :: Dictionary -> Get Interface
 getInterface841 d = do
   void getModule
-  void $ getMaybe getModule
-  void getWord8
-  replicateM_ 5 getFP
-  void getBool
-  void getBool
+  skipMaybe getModule
+  skipWord8
+  replicateM_ 5 skipFP
+  skipBool
+  skipBool
   Interface <$> getDependencies <*> getUsage
  where
   getModule = do
@@ -461,23 +503,23 @@ getInterface841 d = do
     go = do
       usageType <- getWord8
       case usageType of
-        0 -> getModule *> getFP *> getBool $> Nothing
+        0 -> getModule *> skipFP*> getBool $> Nothing
         1 ->
-             getCachedBS d *> getFP *> getMaybe getFP *>
-             getList (getTuple (getWord8 *> getCachedBS d) getFP) *>
+             getCachedBS d *> skipFP*> getMaybe skipFP*>
+             getList (getTuple (getWord8 *> getCachedBS d) skipFP) *>
              getBool $> Nothing
-        2 -> Just . Usage <$> getString <* getFP
-        3 -> getModule *> getFP $> Nothing
+        2 -> Just . Usage <$> getString <* skipFP
+        3 -> getModule *> skipFP$> Nothing
         _ -> fail $ "Invalid usageType: " <> show usageType
 
 getInterface861 :: Dictionary -> Get Interface
 getInterface861 d = do
   void getModule
-  void $ getMaybe getModule
-  void getWord8
-  replicateM_ 6 getFP
-  void getBool
-  void getBool
+  skipMaybe getModule
+  skipWord8
+  replicateM_ 6 skipFP
+  skipBool
+  skipBool
   Interface <$> getDependencies <*> getUsage
  where
   getModule = do
@@ -501,151 +543,285 @@ getInterface861 d = do
     go = do
       usageType <- getWord8
       case usageType of
-        0 -> getModule *> getFP *> getBool $> Nothing
+        0 -> getModule *> skipFP*> getBool $> Nothing
         1 ->
-             getCachedBS d *> getFP *> getMaybe getFP *>
-             getList (getTuple (getWord8 *> getCachedBS d) getFP) *>
+             getCachedBS d *> skipFP*> getMaybe skipFP*>
+             getList (getTuple (getWord8 *> getCachedBS d) skipFP) *>
              getBool $> Nothing
-        2 -> Just . Usage <$> getString <* getFP
-        3 -> getModule *> getFP $> Nothing
+        2 -> Just . Usage <$> getString <* skipFP
+        3 -> getModule *> skipFP$> Nothing
         _ -> fail $ "Invalid usageType: " <> show usageType
 
 getInterfaceRecent :: IfaceVersion -> Dictionary -> Get Interface
 getInterfaceRecent version d = do
-  void $ traceShow "Module:" getModule
-  void $ traceShow "Sig:" $ getMaybe getModule
-  void getWord8 -- hsc_src
-  getFP         -- iface_hash
-  getFP         -- mod_hash
-  getFP         -- flag_hash
-  getFP         -- opt_hash
-  getFP         -- hpc_hash
-  getFP         -- plugin_hash
-  void getBool  -- orphan
-  void getBool  -- hasFamInsts
-  ddeps  <- traceShow "Dependencies:" getDependencies
-  dusage <- traceShow "Usage:"        getUsage
-  pure (Interface ddeps dusage)
+  if 
+    | version >= V9140 -> do
+        skipIfaceModInfo -- mi_mod_info_
+        skipFP           -- mi_iface_hash_
+        ddeps <- withBlockPrefix getDependencies
+        skipWithBlockPrefix "mi_public_"
+        skipWithBlockPrefix "mi_top_env_"
+        skipMaybe (skipWithBlockPrefix "mi_docs_")
+        mDusage <- getMaybe (withBlockPrefix getIfaceSelfRecompInfo)
+        case mDusage of
+          Nothing ->
+            -- There are no usages. Is that problematic for Stack?
+            pure (Interface ddeps (List []))
+          Just dusage -> pure (Interface ddeps dusage)
+    | otherwise -> do
+        skipWith "Module:" getModule
+        skipWith "Sig:" $ getMaybe getModule
+        skipWord8 -- hsc_src
+        skipFP    -- iface_hash
+        skipFP    -- mod_hash
+        skipFP    -- flag_hash
+        skipFP    -- opt_hash
+        skipFP    -- hpc_hash
+        skipFP    -- plugin_hash
+        skipBool  -- orphan
+        skipBool  -- hasFamInsts
+        ddeps  <- with "Dependencies:" $ withBlockPrefix getDependencies
+        dusage <- with "Usage:" $ withBlockPrefix getFileUsage
+        pure (Interface ddeps dusage)
  where
   since v = when (version >= v)
 
   getFastString = getCachedBS d
 
+  -- Like 'getFastString' but we discard the information.
+  skipFastString :: Get ()
+  skipFastString = void getFastString
+
+  getModule :: Get Module
   getModule = do
-    idType <- traceShow "Unit type:" getWord8
+    idType <- with "Unit type:" getWord8
     case idType of
-      0 -> void getFastString
-      1 ->
-           void $
-           getFastString *> getList (getTuple getFastString getModule)
+      0 -> skipFastString
+      1 -> do
+        skipFastString
+        skipList (getTuple getFastString getModule)
       _ -> fail $ "Invalid unit type: " <> show idType
     Module <$> getFastString
-  getDependencies =
-    withBlockPrefix $ do
-      if version >= V9041
-        then do
-          -- warning: transitive dependencies are no longer stored,
-          -- only direct imports!
-          -- Modules are now prefixed with their UnitId (should have been
-          -- ModuleWithIsBoot...)
-          direct_mods <- traceShow "direct_mods:" $
-            getList (getFastString *> getTuple getFastString getBool)
-          direct_pkgs <- getList getFastString
 
+  -- See `instance Binary Dependencies` in module GHC.Unit.Module.Deps.
+  getDependencies =
+    if 
+      | version >= V9041 -> do
+          -- warning: transitive dependencies are no longer stored, only direct 
+          -- imports!
+          -- Modules are now prefixed with their UnitId (should have been
+          -- ModuleWithIsBoot ...)
+          direct_mods <- with "direct_mods:" $
+            if 
+              | version >= V9140 -> getList $ do
+                  skipIfaceImportLevel
+                  skipFastString
+                  getTuple getFastString getBool
+              | otherwise -> getList $ do
+                  skipFastString
+                  getTuple getFastString getBool
+          direct_pkgs <-
+            if
+              | version >= V9140 -> getList $ do
+                  skipIfaceImportLevel
+                  getFastString
+              | otherwise -> getList getFastString
+  
           -- plugin packages are now stored separately
           plugin_pkgs <- getList getFastString
           let all_pkgs = unList plugin_pkgs ++ unList direct_pkgs
-
+  
           -- instead of a trust bool for each unit, we have an additional
           -- list of trusted units (transitive)
           trusted_pkgs <- getList getFastString
           let trusted u = u `elem` unList trusted_pkgs
               all_pkgs_trust = List (zip all_pkgs (map trusted all_pkgs))
-
+  
           -- these are new
-          _sig_mods  <- getList getModule
-          _boot_mods <- getList (getFastString *> getTuple getFastString getBool)
-
+          skipList getModule -- sig_mods
+          skipList $ do -- boot_mods
+            skipFastString
+            getTuple skipFastString skipBool
+  
           dep_orphs  <- getList getModule
           dep_finsts <- getList getModule
-
+  
           -- plugin names are no longer stored here
           let dep_plgins = List []
-
-          pure (Dependencies direct_mods all_pkgs_trust dep_orphs dep_finsts dep_plgins)
-        else do
+  
+          pure Dependencies
+            { dmods    = direct_mods
+            , dpkgs    = all_pkgs_trust
+            , dorphs   = dep_orphs
+            , dfinsts  = dep_finsts
+            , dplugins = dep_plgins
+            }
+      | otherwise -> do
           dep_mods   <- getList (getTuple getFastString getBool)
           dep_pkgs   <- getList (getTuple getFastString getBool)
           dep_orphs  <- getList getModule
           dep_finsts <- getList getModule
           dep_plgins <- getList getFastString
-          pure (Dependencies dep_mods dep_pkgs dep_orphs dep_finsts dep_plgins)
+          pure Dependencies
+            { dmods    = dep_mods
+            , dpkgs    = dep_pkgs
+            , dorphs   = dep_orphs
+            , dfinsts  = dep_finsts
+            , dplugins = dep_plgins
+            }
 
-  getUsage = withBlockPrefix $ List . catMaybes . unList <$> getList go
+  -- See `newtype IfaceImportLevel` and 
+  -- `deriving Binary via EnumBinary ImportLevel` in module 
+  -- GHC.Unit.Module.Deps. We discard this information.
+  skipIfaceImportLevel :: Get ()
+  skipIfaceImportLevel = skipImportLevel
+
+  -- See `data ImportLevel` and 
+  -- `deriving via (EnumBinary ImportLevel) instance Binary ImportLevel` in
+  -- module GHC.Types.Basic. We discard this information.
+  skipImportLevel :: Get ()
+  skipImportLevel = void getInt64be
+
+  -- See `data Usage` and `instance Binary Usage` in module 
+  -- GHC.Module.Unit.Deps. We discard most of the information, except about the
+  -- usage of files.
+  getFileUsage = List . catMaybes . unList <$> getList go
    where
-    -- this must follow the `Binary Usage` instance in GHC
-    -- (in GHC.Unit.Module.Deps, at least in GHC 9.4.5)
     go :: Get (Maybe Usage)
     go = do
-      usageType <- traceShow "Usage type:" getWord8
+      usageType <- with "Usage type:" getWord8
       case usageType of
         0 -> do
-          void (traceShow "Module:" getModule) -- usg_mod
-          void getFP                           -- usg_mod_hash
-          void getBool                         -- usg_safe
+          skipWith "Module:" getModule -- usg_mod
+          skipFP                       -- usg_mod_hash
+          skipBool                     -- usg_safe
           pure Nothing
 
         1 -> do
-          void (traceShow "Home module:" getFastString)   -- usg_mod_name
-          since V9045 $ void getFastString                -- usg_unit_id
-          void getFP                                      -- usg_mod_hash
-          void (getMaybe getFP)                           -- usg_exports
-          void getEntitiesList                            -- usg_entities
-          void getBool                                    -- usg_safe
+          skipWith "Home module:" getFastString -- usg_mod_name
+          since V9045 $ void getFastString      -- usg_unit_id
+          skipFP                                -- usg_mod_hash
+          if                                    -- usg_exports
+            | version < V9140 -> skipMaybe skipFP
+            | otherwise -> skipMaybe skipHomeModImport
+          skipEntitiesList                      -- usg_entities
+          skipBool                              -- usg_safe
           pure Nothing
 
         2 -> do
           -- usg_file_path
-          file_path  <- traceShow "File:" $ if version >= V9081
-            then Text.unpack . Text.decodeUtf8 <$> getFastString
-            else getString
-          void $ traceShow "FP:" getFP'                     -- usg_file_hash
-          since V9041 $ void $ traceShow "File label:" (getMaybe getString)-- usg_file_label
+          file_path  <- with "File:" $
+            if 
+              | version >= V9081 -> Text.unpack . Text.decodeUtf8 <$> getFastString
+              | otherwise -> getString
+          skipWith "FP:" getFP                  -- usg_file_hash
+          since V9041 $ skipWith "File label:" (getMaybe getString)-- usg_file_label
           pure (Just (Usage file_path))
 
         3 -> do
           void getModule -- usg_mod
-          void getFP     -- usg_mod_hash
+          skipFP         -- usg_mod_hash
           pure Nothing
 
         4 | version >= V9041 -> do -- UsageHomeModuleInterface
-          void getFastString                  -- usg_mod_name
-          since V9045 $ void getFastString    -- usg_unit_id
-          void getFP                          -- usg_iface_hash
+          skipFastString             -- usg_mod_name
+          since V9045 skipFastString -- usg_unit_id
+          skipFP                     -- usg_iface_hash
           pure Nothing
 
         _ -> fail $ "Invalid usageType: " <> show usageType
 
-  getEntitiesList :: Get (List (ByteString, ()))
-  getEntitiesList = getList (getTuple (getNameSpace *> getFastString) getFP)
+  -- See `data HomeModImport` and `instance Binary HomeModImport` in module
+  -- GHC.Unit.Module.Deps. We discard the information.
+  skipHomeModImport :: Get ()
+  skipHomeModImport = do
+    skipFP
+    skipHomeModImportedAvails
+
+  -- See `data HomeModImportedAvails` and
+  -- `instance Binary HomeModImportedAvails` in module GHC.Unit.Module.Deps. We 
+  -- discard the information.
+  skipHomeModImportedAvails :: Get ()
+  skipHomeModImportedAvails = do
+    homeModImportedAvailsType <- with "HomeModImportedAvails:" getWord8
+    case homeModImportedAvailsType of
+      0 -> do
+        skipDetOrdAvails
+        skipList skipName
+      1 -> skipFP
+      _ -> fail $ "Invalid HomeModImportedAvails type: " <> show homeModImportedAvailsType
+
+  -- See `newtype DetOrdAvails` in module GHC.Types.Avail. We discard the
+  -- information.
+  skipDetOrdAvails :: Get ()
+  skipDetOrdAvails = skipList skipAvailInfo
+
+  -- See `instance Binary AvailInfo` in module GHC.Types.Avail. We discard the
+  -- information.
+  skipAvailInfo :: Get ()
+  skipAvailInfo = do
+    availInfoType <- with "AvailInfo type:" getWord8
+    case availInfoType of
+      0 -> skipName
+      1 -> do
+        skipName
+        skipList skipName
+      _ -> fail $ "Invalid AvailInfo type: " <> show availInfoType
+
+  -- See `instance Binary Name` in module GHC.Types.Name. We discard the
+  -- information.
+  skipName :: Get ()
+  skipName = void getInt64be
+
+  -- See `data Usage` and `UsageHomeModule` in module GHC.Unit.Module.Deps. We
+  -- discard the information.
+  skipEntitiesList :: Get ()
+  skipEntitiesList = skipList (getTuple skipOccName skipFP)
+
+  -- See `data OccName` and `instance Binary OccName` in module 
+  -- GHC.Types.Name.Occurrence. We discard the information.
+  skipOccName :: Get ()
+  skipOccName = do
+    skipNameSpace
+    skipFastString
 
   -- See `instance Binary NameSpace` in module GHC.Types.Name.Occurrence. We
   -- discard the information.
-  getNameSpace :: Get ()
-  getNameSpace = if version >= V9081
-    then do
-      nameSpaceType <- getWord8
-      case nameSpaceType of
-        0 -> pure ()
-        1 -> pure ()
-        2 -> pure ()
-        3 -> pure ()
-        -- Unlike the original, we test that the byte we have obtained is
-        -- valid.
-        4 -> do
-          void getFastString
-        _ -> fail $ "Invalid NameSpace type: " <> show nameSpaceType
-    else void getWord8
+  skipNameSpace :: Get ()
+  skipNameSpace =
+    if 
+      | version >= V9081 -> do
+          nameSpaceType <- getWord8
+          case nameSpaceType of
+            0 -> pure ()
+            1 -> pure ()
+            2 -> pure ()
+            3 -> pure ()
+            4 -> skipFastString
+            -- Unlike the original, we test that the byte we have obtained is
+            -- valid.
+            _ -> fail $ "Invalid NameSpace type: " <> show nameSpaceType
+      | otherwise -> skipWord8
+
+  -- See `instance Binary IfaceModInfo` in module GHC.Unit.Module.ModIface. We
+  -- discard the information.
+  skipIfaceModInfo :: Get ()
+  skipIfaceModInfo = do
+    skipWith "Module:" getModule         -- mi_mod_info_module
+    skipWith "Sig:" $ getMaybe getModule -- mi_mod_info_sig_of
+    skipWord8                            -- mi_mod_info_hsc_src
+
+  -- See `data IfaceSelfRecomp` and `instance Binary IfaceSelfRecomp` in module
+  -- GHC.Iface.Recomp.Types. We discard most of this information.
+  getIfaceSelfRecompInfo :: Get (List Usage)
+  getIfaceSelfRecompInfo = do
+    skipFP -- sr_src_hash
+    dusage <- with "Usage:" (withBlockPrefix getFileUsage) -- sr_usages
+    skipFP -- sr_flag_hash
+    skipFP -- sr_opt_hash
+    skipFP -- sr_hpc_hash
+    skipFP -- sr_plugin_hash
+    pure dusage
 
 getInterface :: Get Interface
 getInterface = do
@@ -689,6 +865,7 @@ getInterface = do
   traceGet ("Version: " ++ version)
 
   let !ifaceVersion
+        | version >= "9140" = V9140
         | version >= "9120" = V9120
         | version >= "9081" = V9081
         | version >= "9045" = V9045
@@ -709,11 +886,11 @@ getInterface = do
   way <- getString
   traceGet ("Ways: " ++ show way)
 
-  -- source hash (GHC >= 9.4)
-  when (ifaceVersion >= V9041) $ void getFP
+  -- source hash (GHC >= 9.4 && GHC < 9.14)
+  when (ifaceVersion >= V9041 && ifaceVersion < V9140) skipFP
 
   -- extensible fields (GHC >= 9.0)
-  when (ifaceVersion >= V9001) $ void getPtr
+  when (ifaceVersion >= V9001) skipPtr
 
   -- dict_ptr
   dictPtr <- if ifaceVersion >= V9120 -- 9.12 uses relative pointers
@@ -725,12 +902,13 @@ getInterface = do
   dict <- lookAhead $ getDictionary $ fromIntegral dictPtr
 
   -- symtable_ptr
-  void getPtr
+  skipPtr
 
   -- IfaceType table
-  when (ifaceVersion >= V9120) $ void getPtr
+  when (ifaceVersion >= V9120) skipPtr
 
   case ifaceVersion of
+    V9140 -> getInterfaceRecent ifaceVersion dict
     V9120 -> getInterfaceRecent ifaceVersion dict
     V9081 -> getInterfaceRecent ifaceVersion dict
     V9045 -> getInterfaceRecent ifaceVersion dict
@@ -756,7 +934,6 @@ fromFile fp = withBinaryFile fp ReadMode go
           chunk <- hGetSome h defaultChunkSize
           feed $ k $ if B.null chunk then Nothing else Just chunk
     in  feed $ runGetIncremental getInterface
-
 
 getULEB128 :: forall a. (Integral a, FiniteBits a) => Get a
 getULEB128 =
