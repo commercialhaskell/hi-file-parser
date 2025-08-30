@@ -1,5 +1,5 @@
-# GHC 9.4.7
-snapshot: lts-21.15
+# GHC 9.4.8
+snapshot: lts-21.25
 
 flags:
   ansi-terminal:

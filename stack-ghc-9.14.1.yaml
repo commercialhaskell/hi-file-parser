@@ -1,0 +1,10 @@
+# Experimental Stack configuration for GHC 9.14.1-alpha1
+snapshot: nightly-2025-08-29 # GHC 9.12.2
+compiler: ghc-9.14.0.20250819
+compiler-check: match-exact # We sometimes use alpha versions of GHC
+
+extra-deps:
+- git: https://github.com/commercialhaskell/rio.git
+  commit: 1c2cea248864a4e6956f49de193dd4c73617d27f
+  subdirs:
+  - rio
