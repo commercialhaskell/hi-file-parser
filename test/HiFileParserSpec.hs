@@ -37,6 +37,7 @@ versions64 =
   , "ghc9083"  -- Last in GHC 9.8 series, using GHC 9.8.1 format
   , "ghc9101"  -- Last in GHC 9.10 series, using GHC 9.8.1 format
   , "ghc9120"  -- First in GHC 9.12 series, using GHC 9.12 format
+  , "ghc9140"  -- First in GHC 9.14 series, using GHC 9.14 format
   ]
 
 spec :: Spec
