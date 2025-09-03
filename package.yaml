@@ -1,7 +1,7 @@
 spec-version: 0.36.0
 
 name: hi-file-parser
-version: 0.1.7.0
+version: 0.1.8.0
 github: commercialhaskell/hi-file-parser
 synopsis: Parser for GHC's *.hi files
 description: |

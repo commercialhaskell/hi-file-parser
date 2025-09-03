@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           hi-file-parser
-version:        0.1.7.0
+version:        0.1.8.0
 synopsis:       Parser for GHC's *.hi files
 description:    A parser for GHC's *.hi files. Extracts information about dependencies and
                 usage of files.
