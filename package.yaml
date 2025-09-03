@@ -1,9 +1,18 @@
+spec-version: 0.36.0
+
 name: hi-file-parser
 version: 0.1.7.0
 github: commercialhaskell/hi-file-parser
-license: BSD3
-author: Hussein Ait-Lahcen
-maintainer: michael@snoyman.com
+synopsis: Parser for GHC's *.hi files
+description: |
+  A parser for GHC's *.hi files. Extracts information about dependencies and
+  usage of files.
+category: Development
+author: Hussein Ait-Lahcen <hussein.aitlahcen@gmail.com>
+maintainer:
+- Michael Snoyman <michael@snoyman.com>
+- Mike Pilgrem <public@pilgrem.com>
+copyright: Copyright 2015-2025, Stack contributors
 
 extra-source-files:
 - README.md
@@ -41,15 +50,6 @@ extra-source-files:
 - test-files/iface/x64/ghc9140/Main.hi
 - test-files/iface/x64/ghc9140/X.hi
 
-# Metadata used when publishing your package
-synopsis: Parser for GHC's hi files
-category: Development
-
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
-description: Please see the README on Github at <https://github.com/commercialhaskell/hi-file-parser/blob/master/README.md>
-
 dependencies:
 - base >= 4.10 && < 5
 - binary
@@ -77,7 +77,6 @@ tests:
     dependencies:
     - hi-file-parser
     - hspec
-
     ghc-options:
     - -threaded
     - -rtsopts

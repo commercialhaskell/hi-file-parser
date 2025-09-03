@@ -6,13 +6,16 @@ cabal-version: 1.12
 
 name:           hi-file-parser
 version:        0.1.7.0
-synopsis:       Parser for GHC's hi files
-description:    Please see the README on Github at <https://github.com/commercialhaskell/hi-file-parser/blob/master/README.md>
+synopsis:       Parser for GHC's *.hi files
+description:    A parser for GHC's *.hi files. Extracts information about dependencies and
+                usage of files.
 category:       Development
 homepage:       https://github.com/commercialhaskell/hi-file-parser#readme
 bug-reports:    https://github.com/commercialhaskell/hi-file-parser/issues
-author:         Hussein Ait-Lahcen
-maintainer:     michael@snoyman.com
+author:         Hussein Ait-Lahcen <hussein.aitlahcen@gmail.com>
+maintainer:     Michael Snoyman <michael@snoyman.com>,
+                Mike Pilgrem <public@pilgrem.com>
+copyright:      Copyright 2015-2025, Stack contributors
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -59,8 +62,6 @@ source-repository head
 library
   exposed-modules:
       HiFileParser
-  other-modules:
-      Paths_hi_file_parser
   hs-source-dirs:
       src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
@@ -79,7 +80,6 @@ test-suite hi-file-parser-test
   main-is: Spec.hs
   other-modules:
       HiFileParserSpec
-      Paths_hi_file_parser
   hs-source-dirs:
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
