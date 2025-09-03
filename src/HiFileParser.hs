@@ -23,11 +23,17 @@ module HiFileParser
   ) where
 
 import           Control.Monad ( replicateM, replicateM_, when )
+import           Control.Monad.State
+                   ( StateT, evalStateT, get, gets, lift, modify )
 import           Data.Binary ( Word32, Word64, Word8)
 import qualified Data.Binary.Get as G
                    ( Decoder (..), Get, bytesRead, getByteString, getInt64be
                    , getWord32be, getWord64be, getWord8, lookAhead
                    , runGetIncremental, skip
+                   )
+import           Data.Bits
+                   ( FiniteBits (..), (.|.), clearBit, complement, testBit
+                   , unsafeShiftL
                    )
 import           Data.Bool ( bool )
 import           Data.ByteString.Lazy.Internal ( defaultChunkSize )
@@ -37,21 +43,15 @@ import           Data.Maybe ( catMaybes )
 #if !MIN_VERSION_base(4,11,0)
 import           Data.Semigroup ( (<>) )
 #endif
-import qualified Data.Vector as V
-import qualified Data.Text.Encoding as Text
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
+import qualified Data.Vector as V
+import qualified Debug.Trace
 import           GHC.IO.IOMode ( IOMode (..) )
 import           Numeric ( showHex )
-import           RIO.ByteString as B ( ByteString, hGetSome, null )
 import           RIO ( Generic, Int64, NFData )
+import           RIO.ByteString as B ( ByteString, hGetSome, null )
 import           System.IO ( withBinaryFile )
-import           Data.Bits
-                   ( FiniteBits (..), (.|.), clearBit, complement, testBit
-                   , unsafeShiftL
-                   )
-import           Control.Monad.State
-                   ( StateT, evalStateT, get, gets, lift, modify )
-import qualified Debug.Trace
 
 newtype IfaceGetState = IfaceGetState
   { useLEB128 :: Bool -- ^ Use LEB128 encoding for numbers
@@ -71,7 +71,7 @@ data IfaceVersion
   | V9041
   | V9045
   | V9081
-  | V9120
+  | V9121
   | V9140
   deriving (Eq, Enum, Ord, Show)
   -- careful, the Ord matters!
@@ -865,8 +865,8 @@ getInterface = do
   traceGet ("Version: " ++ version)
 
   let !ifaceVersion
-        | version >= "9140" = V9140
-        | version >= "9120" = V9120
+        | version >= "9140" = V9140 -- Support GHC 9.14.1-alpha1
+        | version >= "9121" = V9121
         | version >= "9081" = V9081
         | version >= "9045" = V9045
         | version >= "9041" = V9041
@@ -893,7 +893,7 @@ getInterface = do
   when (ifaceVersion >= V9001) skipPtr
 
   -- dict_ptr
-  dictPtr <- if ifaceVersion >= V9120 -- 9.12 uses relative pointers
+  dictPtr <- if ifaceVersion >= V9121 -- 9.12 uses relative pointers
     then getRelPtr
     else getPtr
   traceGet ("Dict ptr: " ++ show dictPtr)
@@ -905,11 +905,11 @@ getInterface = do
   skipPtr
 
   -- IfaceType table
-  when (ifaceVersion >= V9120) skipPtr
+  when (ifaceVersion >= V9121) skipPtr
 
   case ifaceVersion of
     V9140 -> getInterfaceRecent ifaceVersion dict
-    V9120 -> getInterfaceRecent ifaceVersion dict
+    V9121 -> getInterfaceRecent ifaceVersion dict
     V9081 -> getInterfaceRecent ifaceVersion dict
     V9045 -> getInterfaceRecent ifaceVersion dict
     V9041 -> getInterfaceRecent ifaceVersion dict
