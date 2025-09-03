@@ -28,16 +28,18 @@ extra-source-files:
 - test-files/iface/x64/ghc9028/X.hi
 - test-files/iface/x64/ghc9044/Main.hi
 - test-files/iface/x64/ghc9044/X.hi
-- test-files/iface/x64/ghc9047/Main.hi
-- test-files/iface/x64/ghc9047/X.hi
-- test-files/iface/x64/ghc9066/Main.hi
-- test-files/iface/x64/ghc9066/X.hi
-- test-files/iface/x64/ghc9083/Main.hi
-- test-files/iface/x64/ghc9083/X.hi
-- test-files/iface/x64/ghc9101/Main.hi
-- test-files/iface/x64/ghc9101/X.hi
-- test-files/iface/x64/ghc9120/Main.hi
-- test-files/iface/x64/ghc9120/X.hi
+- test-files/iface/x64/ghc9048/Main.hi
+- test-files/iface/x64/ghc9048/X.hi
+- test-files/iface/x64/ghc9067/Main.hi
+- test-files/iface/x64/ghc9067/X.hi
+- test-files/iface/x64/ghc9084/Main.hi
+- test-files/iface/x64/ghc9084/X.hi
+- test-files/iface/x64/ghc9102/Main.hi
+- test-files/iface/x64/ghc9102/X.hi
+- test-files/iface/x64/ghc9122/Main.hi
+- test-files/iface/x64/ghc9122/X.hi
+- test-files/iface/x64/ghc9140/Main.hi
+- test-files/iface/x64/ghc9140/X.hi
 
 # Metadata used when publishing your package
 synopsis: Parser for GHC's hi files
