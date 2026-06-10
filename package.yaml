@@ -49,6 +49,9 @@ extra-source-files:
 - test-files/iface/x64/ghc9122/X.hi
 - test-files/iface/x64/ghc9140/Main.hi
 - test-files/iface/x64/ghc9140/X.hi
+- test-files/iface/x64/ghc9103-signatures/LogHelper.hi
+- test-files/iface/x64/ghc9103-signatures/Consumer.hi
+- test-files/iface/x64/ghc9103-signatures/Main.hi
 
 dependencies:
 - base >= 4.10 && < 5
