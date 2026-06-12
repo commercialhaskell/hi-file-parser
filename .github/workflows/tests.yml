@@ -7,8 +7,10 @@ on:
     - master
   workflow_dispatch:
 
-# As of 2025-08-30, ubuntu-latest and windows-latest come with Stack 3.7.1.
-# macos-13 and macos-latest do not come with Haskell tools.
+# As of 2026-06-12:
+# * ubuntu-latest comes with Stack 3.9.3 and GHC 9.14.1; and
+# * windows-latest comes with Stack 3.9.3 and GHC 9.14.1.
+# However, macos-15-intel and macos-latest do not come with Haskell tools.
 
 jobs:
   tests:
@@ -20,7 +22,8 @@ jobs:
         os:
         - ubuntu-latest
         - windows-latest
-        - macos-13 # x86_64
+        # macos-15-intel will be the last that provides macOS/x86_64
+        - macos-15-intel # x86_64
         - macos-latest # AArch64
         snapshot:
         - stack-ghc-8.10.7.yaml
@@ -29,8 +32,9 @@ jobs:
         - stack-ghc-9.4.8.yaml
         - stack-ghc-9.6.7.yaml
         - stack-ghc-9.8.4.yaml
-        - stack-ghc-9.10.2.yaml
-        - stack-ghc-9.12.2.yaml
+        - stack-ghc-9.10.3.yaml
+        - stack-ghc-9.12.4.yaml
+        - stack-ghc-9.14.1.yaml
         exclude:
         - os: macos-latest
           snapshot: stack-ghc-8.10.7.yaml # GHC 8.10.7 needs LLVM >= 9 & <= 12
@@ -44,7 +48,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.stack
-        key: ${{ runner.os }}-${{ hashFiles( matrix.resolver ) }}
+        key: ${{ runner.os }}-${{ hashFiles( matrix.snapshot ) }}
     - name: Cache dependencies on Windows
       if: startsWith(runner.os, 'Windows')
       uses: actions/cache@v4
@@ -52,14 +56,15 @@ jobs:
         path: |
           ~\AppData\Roaming\stack
           ~\AppData\Local\Programs\stack
-        key: ${{ runner.os }}-${{ hashFiles( matrix.resolver ) }}
+        key: ${{ runner.os }}-${{ hashFiles( matrix.snapshot ) }}
     - name: Install dependencies and test
       shell: bash
       run: |
         set -ex
-        if [[ "${{ matrix.os }}" == "macos-13" || "${{ matrix.os }}" == "macos-latest" ]]
+        if [[ "${{ matrix.os }}" == "macos-15-intel" || "${{ matrix.os }}" == "macos-latest" ]]
         then
-          # macos-13 and macos-latest do not include Haskell tools as at 2025-08-30.
+          # macos-15-intel and macos-latest do not include Haskell tools as at
+          # 2026-06-12.
           curl -sSL https://get.haskellstack.org/ | sh
         fi
         stack --snapshot=${{ matrix.snapshot }} test --bench --only-dependencies
