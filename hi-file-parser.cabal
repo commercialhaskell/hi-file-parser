@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.39.1.
+-- This file has been generated from package.yaml by hpack version 0.39.5.
 --
 -- see: https://github.com/sol/hpack
 
@@ -48,15 +48,15 @@ extra-source-files:
     test-files/iface/x64/ghc9067/X.hi
     test-files/iface/x64/ghc9084/Main.hi
     test-files/iface/x64/ghc9084/X.hi
-    test-files/iface/x64/ghc9102/Main.hi
-    test-files/iface/x64/ghc9102/X.hi
-    test-files/iface/x64/ghc9122/Main.hi
-    test-files/iface/x64/ghc9122/X.hi
-    test-files/iface/x64/ghc9140/Main.hi
-    test-files/iface/x64/ghc9140/X.hi
+    test-files/iface/x64/ghc9103/Main.hi
+    test-files/iface/x64/ghc9103/X.hi
     test-files/iface/x64/ghc9103-signatures/LogHelper.hi
     test-files/iface/x64/ghc9103-signatures/Consumer.hi
     test-files/iface/x64/ghc9103-signatures/Main.hi
+    test-files/iface/x64/ghc9124/Main.hi
+    test-files/iface/x64/ghc9124/X.hi
+    test-files/iface/x64/ghc9141/Main.hi
+    test-files/iface/x64/ghc9141/X.hi
 
 source-repository head
   type: git

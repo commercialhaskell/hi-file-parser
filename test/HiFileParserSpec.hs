@@ -36,9 +36,9 @@ versions64 =
   , "ghc9048"  -- Last in GHC 9.4 series, using GHC 9.4.5 format
   , "ghc9067"  -- Last in GHC 9.6 series, using GHC 9.4.5 format
   , "ghc9084"  -- Last in GHC 9.8 series, using GHC 9.8.1 format
-  , "ghc9102"  -- Last in GHC 9.10 series, using GHC 9.8.1 format
-  , "ghc9122"  -- Last in GHC 9.12 series, using GHC 9.12 format
-  , "ghc9140"  -- First in GHC 9.14 series, using GHC 9.14 format
+  , "ghc9103"  -- Last in GHC 9.10 series, using GHC 9.8.1 format
+  , "ghc9124"  -- Last in GHC 9.12 series, using GHC 9.12 format
+  , "ghc9141"  -- First in GHC 9.14 series, using GHC 9.14 format
   ]
 
 -- | Interface files that exercise two distinct bugs in

@@ -1,2 +1,2 @@
-snapshot: stack-ghc-9.10.2.yaml
+snapshot: stack-ghc-9.10.3.yaml
 compiler-check: match-exact # We sometimes use alpha versions of GHC
