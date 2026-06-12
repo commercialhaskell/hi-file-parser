@@ -600,6 +600,9 @@ getInterfaceRecent version d = do
       1 -> do
         skipFastString
         skipList (getTuple getFastString getModule)
+      2 -> pure ()  -- HoleUnit: no payload (see Binary Unit in
+                   -- compiler/GHC/Unit/Types.hs in GHC, e.g. line 383 on the
+                   -- ghc-9.10 branch: @put_ bh HoleUnit = putByte bh 2@).
       _ -> fail $ "Invalid unit type: " <> show idType
     Module <$> getFastString
 
@@ -638,7 +641,7 @@ getInterfaceRecent version d = do
               all_pkgs_trust = List (zip all_pkgs (map trusted all_pkgs))
   
           -- these are new
-          skipList getModule -- sig_mods
+          skipList skipFastString -- sig_mods :: [ModuleName]
           skipList $ do -- boot_mods
             skipFastString
             getTuple skipFastString skipBool
