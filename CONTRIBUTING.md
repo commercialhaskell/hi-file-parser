@@ -28,7 +28,7 @@ from the objective, consider marking it in the configuration file to be ignored.
 
 The library is tested using GitHub Actions. The GitHub Actions script aims to
 test builds with versions of GHC released within at least the last three years.
-GHC 8.10.7 was released on 27 August 2021.
+GHC 9.2.8 was released on 26 May 2023.
 
 A separate Stack project-level configuration file is provided for the most
 recent release of each major GHC version for which there is a Stackage snapshot.

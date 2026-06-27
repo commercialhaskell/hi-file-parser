@@ -26,8 +26,6 @@ jobs:
         - macos-15-intel # x86_64
         - macos-latest # AArch64
         snapshot:
-        - stack-ghc-8.10.7.yaml
-        - stack-ghc-9.0.2.yaml
         - stack-ghc-9.2.8.yaml
         - stack-ghc-9.4.8.yaml
         - stack-ghc-9.6.7.yaml
@@ -35,11 +33,6 @@ jobs:
         - stack-ghc-9.10.3.yaml
         - stack-ghc-9.12.4.yaml
         - stack-ghc-9.14.1.yaml
-        exclude:
-        - os: macos-latest
-          snapshot: stack-ghc-8.10.7.yaml # GHC 8.10.7 needs LLVM >= 9 & <= 12
-        - os: macos-latest
-          snapshot: stack-ghc-9.0.2.yaml # GHC 9.0.2 needs LLVM >= 9 & <= 12
     steps:
     - name: Clone project
       uses: actions/checkout@v4
