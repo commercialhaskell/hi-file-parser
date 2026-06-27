@@ -1,3 +1,5 @@
-/.stack-work/
 *~
+
+# Stack-related
+.stack-work/
 *.yaml.lock
