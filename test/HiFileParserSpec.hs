@@ -89,7 +89,7 @@ spec = do
 
 bugsAandB :: Version -> SpecWith (Arg (IO ()))
 bugsAandB version = do
-  let stub = "x64/" <> version <> "-signatures"
+  let stub = "x64/" <> version <> "/signatures"
       path1 iFaceFile = stub <> "/" <> iFaceFile
       path2 fp = "test-files/iface/" <> fp
       logHelperPath1 = path1 "LogHelper.hi"
