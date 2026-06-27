@@ -14,7 +14,13 @@ The project comprises four Haskell packages:
   `main` module `Main`)
 
 With a version of Stack that supports Backpack, the project can be built by
-commanding `stack build` in its project directory.
+commanding `stack --snapshot <compiler_version> build` in its project directory,
+specifying an appropriate snapshot for the intended compiler version. For
+example (for GHC 9.10.3):
+
+~~~text
+stack --snapshot ghc-9.10.3 build
+~~~
 
 The relevant `*.hi` files are then:
 
