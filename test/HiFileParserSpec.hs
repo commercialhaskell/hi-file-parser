@@ -3,10 +3,10 @@
 
 module HiFileParserSpec (spec) where
 
-import qualified Data.List             as List
-import qualified HiFileParser          as Iface
+import qualified Data.List as List
+import qualified HiFileParser as Iface
 import           RIO
-import           Test.Hspec            (Spec, describe, it, shouldBe)
+import           Test.Hspec (Arg, Spec, SpecWith, describe, it, shouldBe)
 
 type Version = String
 type Directory = FilePath
@@ -39,6 +39,12 @@ versions64 =
   , "ghc9103"  -- Last in GHC 9.10 series, using GHC 9.8.1 format
   , "ghc9124"  -- Last in GHC 9.12 series, using GHC 9.12 format
   , "ghc9141"  -- First in GHC 9.14 series, using GHC 9.14 format
+  ]
+
+-- | GHC x.y.z is represented as \"ghcxyyz\" where yy is padded with zeros.
+signatureVersions64 :: [Version]
+signatureVersions64 =
+  [ "ghc9103"  -- Last in GHC 9.10 series, using GHC 9.8.1 format
   ]
 
 -- | Interface files that exercise two distinct bugs in
@@ -79,77 +85,88 @@ spec = do
     traverse_ (deserialize check32 . ("x32/" <>)) versions32
     traverse_ (deserialize check64 . ("x64/" <>)) versions64
   describe "signature-bearing interfaces" $ do
-    describe "Bug A: getModule should recognise HoleUnit (tag 2)" $
-      -- Fails today with @Left "Invalid unit type: 2"@. Becomes green as
-      -- soon as @getModule@ handles tag @2@ as @HoleUnit@ with no payload,
-      -- independently of Bug B. After Bug A is fixed the file still fails
-      -- to parse fully because of Bug B (different error: \"Invalid unit
-      -- type: 6\"), but this targeted assertion is already satisfied.
-      --
-      -- ---- GHC source references ----
-      -- Mechanism: @HoleUnit@ constructor with @putByte bh 2@ in
-      -- @instance Binary Unit@. Introduced by Sylvain Henry on 2020-04-03
-      -- in commit @10d15f1ec4ba@ ("Refactoring unit management code";
-      -- commit message: "Replace BackPack fake 'hole' UnitId by a proper
-      -- HoleUnit constructor."):
-      --   https://github.com/ghc/ghc/commit/10d15f1ec4bab4dd6152d87fc66e61658a705eb3
-      --
-      -- First GHC release containing it: GHC 9.0.1, tag
-      -- @ghc-9.0.1-release@ (tag object @da53a348@, tagged 2021-02-04).
-      -- At that release the file had been renamed to
-      -- @compiler/GHC/Unit/Types.hs@; the relevant lines are:
-      --   * @| HoleUnit@ constructor, line 247:
-      --     https://github.com/ghc/ghc/blob/da53a348150d30193a6f28e1b7ddcabdf45ab726/compiler/GHC/Unit/Types.hs#L247
-      --   * @put_ bh HoleUnit = do; putByte bh 2@, lines 382-383:
-      --     https://github.com/ghc/ghc/blob/da53a348150d30193a6f28e1b7ddcabdf45ab726/compiler/GHC/Unit/Types.hs#L382-L383
-      --
-      -- Same byte-2 encoding has been carried forward unchanged in 9.2,
-      -- 9.4, 9.6, 9.8, 9.10, 9.12, 9.14 - so this bug applies to every
-      -- GHC release from 9.0.1 onward.
-      it "x64/ghc9103-signatures/LogHelper.hi: parser must not bail at the HoleUnit byte" $
-        parseShouldNotBailWith "Invalid unit type: 2" $
-          "test-files/iface/x64/ghc9103-signatures/LogHelper.hi"
-    describe "Bug B: dep_sig_mods is [ModuleName], not [Module]" $ do
-      -- These two fixtures fail today with @Left "Invalid unit type: 4"@.
-      -- They become green as soon as @dep_sig_mods@ is read as a list of
-      -- cached FastStrings, independently of Bug A. (Their own module
-      -- references are @RealUnit@, so they never touch the HoleUnit path
-      -- - Bug A's fix is neither necessary nor sufficient.)
-      --
-      -- ---- GHC source references ----
-      -- Mechanism: @dep_sig_mods :: ![ModuleName]@ field on
-      -- @Dependencies@, written by @instance Binary Dependencies@.
-      -- Introduced by Matthew Pickering on 2021-05-05 in commit
-      -- @38faeea1a940@ ("Remove transitive information about modules and
-      -- packages from interface files", GHC issue #16885):
-      --   https://github.com/ghc/ghc/commit/38faeea1a94072ffd9f459d9fe570f06bc1da84a
-      --
-      -- The GHC 9.2 release branch was forked before this commit landed
-      -- (merge-base of the commit and the @ghc-9.2.1-release@ tag is
-      -- @05c5c054@, 2021-03-15), so GHC 9.2.x shipped without the field.
-      -- First GHC release containing it: GHC 9.4.1, tag
-      -- @ghc-9.4.1-release@ (tag object @c24e9dc5@, tagged 2022-08-07).
-      -- At that release, in @compiler/GHC/Unit/Module/Deps.hs@:
-      --   * @, dep_sig_mods :: ![ModuleName]@, line 62:
-      --     https://github.com/ghc/ghc/blob/6d01245c458c49ca25c89ec13be3268ab6930a27/compiler/GHC/Unit/Module/Deps.hs#L62
-      --   * @put_ bh (dep_sig_mods deps)@ (inside the @instance Binary
-      --     Dependencies@ block at lines 111-119), line 115:
-      --     https://github.com/ghc/ghc/blob/6d01245c458c49ca25c89ec13be3268ab6930a27/compiler/GHC/Unit/Module/Deps.hs#L115
-      --
-      -- The field has been carried forward unchanged in 9.6, 9.8, 9.10,
-      -- 9.12, 9.14 - so this bug applies to every GHC release from 9.4.1
-      -- onward.
-      it "x64/ghc9103-signatures/Consumer.hi: parser must not misalign on dep_sig_mods" $
-        parseShouldNotBailWith "Invalid unit type: 4" $
-          "test-files/iface/x64/ghc9103-signatures/Consumer.hi"
-      it "x64/ghc9103-signatures/Main.hi: parser must not misalign on dep_sig_mods" $
-        parseShouldNotBailWith "Invalid unit type: 4" $
-          "test-files/iface/x64/ghc9103-signatures/Main.hi"
-    describe "Bug A + Bug B: should fully deserialize" $
-      -- Stricter than the per-bug assertions above: requires both fixes
-      -- to be in place. Useful as the regression gate once the bugs are
-      -- closed.
-      traverse_ (deserializeFile "x64/ghc9103-signatures") signatureFiles
+    traverse_ bugsAandB signatureVersions64
+
+bugsAandB :: Version -> SpecWith (Arg (IO ()))
+bugsAandB version = do
+  let stub = "x64/" <> version <> "-signatures"
+      path1 iFaceFile = stub <> "/" <> iFaceFile
+      path2 fp = "test-files/iface/" <> fp
+      logHelperPath1 = path1 "LogHelper.hi"
+      logHelperPath2 = path2 logHelperPath1
+      consumerPath1 = path1 "Consumer.hi"
+      consumerPath2 = path2 consumerPath1
+      mainPath1 = path1 "Main.hi"
+      mainPath2 = path2 mainPath1
+
+  describe "Bug A: getModule should recognise HoleUnit (tag 2)" $
+    -- Fails today with @Left "Invalid unit type: 2"@. Becomes green as
+    -- soon as @getModule@ handles tag @2@ as @HoleUnit@ with no payload,
+    -- independently of Bug B. After Bug A is fixed the file still fails
+    -- to parse fully because of Bug B (different error: \"Invalid unit
+    -- type: 6\"), but this targeted assertion is already satisfied.
+    --
+    -- ---- GHC source references ----
+    -- Mechanism: @HoleUnit@ constructor with @putByte bh 2@ in
+    -- @instance Binary Unit@. Introduced by Sylvain Henry on 2020-04-03
+    -- in commit @10d15f1ec4ba@ ("Refactoring unit management code";
+    -- commit message: "Replace BackPack fake 'hole' UnitId by a proper
+    -- HoleUnit constructor."):
+    --   https://github.com/ghc/ghc/commit/10d15f1ec4bab4dd6152d87fc66e61658a705eb3
+    --
+    -- First GHC release containing it: GHC 9.0.1, tag
+    -- @ghc-9.0.1-release@ (tag object @da53a348@, tagged 2021-02-04).
+    -- At that release the file had been renamed to
+    -- @compiler/GHC/Unit/Types.hs@; the relevant lines are:
+    --   * @| HoleUnit@ constructor, line 247:
+    --     https://github.com/ghc/ghc/blob/da53a348150d30193a6f28e1b7ddcabdf45ab726/compiler/GHC/Unit/Types.hs#L247
+    --   * @put_ bh HoleUnit = do; putByte bh 2@, lines 382-383:
+    --     https://github.com/ghc/ghc/blob/da53a348150d30193a6f28e1b7ddcabdf45ab726/compiler/GHC/Unit/Types.hs#L382-L383
+    --
+    -- Same byte-2 encoding has been carried forward unchanged in 9.2,
+    -- 9.4, 9.6, 9.8, 9.10, 9.12, 9.14 - so this bug applies to every
+    -- GHC release from 9.0.1 onward.
+    it (logHelperPath1 <> ": parser must not bail at the HoleUnit byte") $
+      parseShouldNotBailWith "Invalid unit type: 2" $ logHelperPath2
+  describe "Bug B: dep_sig_mods is [ModuleName], not [Module]" $ do
+    -- These two fixtures fail today with @Left "Invalid unit type: 4"@.
+    -- They become green as soon as @dep_sig_mods@ is read as a list of
+    -- cached FastStrings, independently of Bug A. (Their own module
+    -- references are @RealUnit@, so they never touch the HoleUnit path
+    -- - Bug A's fix is neither necessary nor sufficient.)
+    --
+    -- ---- GHC source references ----
+    -- Mechanism: @dep_sig_mods :: ![ModuleName]@ field on
+    -- @Dependencies@, written by @instance Binary Dependencies@.
+    -- Introduced by Matthew Pickering on 2021-05-05 in commit
+    -- @38faeea1a940@ ("Remove transitive information about modules and
+    -- packages from interface files", GHC issue #16885):
+    --   https://github.com/ghc/ghc/commit/38faeea1a94072ffd9f459d9fe570f06bc1da84a
+    --
+    -- The GHC 9.2 release branch was forked before this commit landed
+    -- (merge-base of the commit and the @ghc-9.2.1-release@ tag is
+    -- @05c5c054@, 2021-03-15), so GHC 9.2.x shipped without the field.
+    -- First GHC release containing it: GHC 9.4.1, tag
+    -- @ghc-9.4.1-release@ (tag object @c24e9dc5@, tagged 2022-08-07).
+    -- At that release, in @compiler/GHC/Unit/Module/Deps.hs@:
+    --   * @, dep_sig_mods :: ![ModuleName]@, line 62:
+    --     https://github.com/ghc/ghc/blob/6d01245c458c49ca25c89ec13be3268ab6930a27/compiler/GHC/Unit/Module/Deps.hs#L62
+    --   * @put_ bh (dep_sig_mods deps)@ (inside the @instance Binary
+    --     Dependencies@ block at lines 111-119), line 115:
+    --     https://github.com/ghc/ghc/blob/6d01245c458c49ca25c89ec13be3268ab6930a27/compiler/GHC/Unit/Module/Deps.hs#L115
+    --
+    -- The field has been carried forward unchanged in 9.6, 9.8, 9.10,
+    -- 9.12, 9.14 - so this bug applies to every GHC release from 9.4.1
+    -- onward.
+    it (consumerPath1 <> ": parser must not misalign on dep_sig_mods") $
+      parseShouldNotBailWith "Invalid unit type: 4" $ consumerPath2
+    it (mainPath1 <> ": parser must not misalign on dep_sig_mods") $
+      parseShouldNotBailWith "Invalid unit type: 4" $ mainPath2
+  describe "Bug A + Bug B: should fully deserialize" $
+    -- Stricter than the per-bug assertions above: requires both fixes
+    -- to be in place. Useful as the regression gate once the bugs are
+    -- closed.
+    traverse_ (deserializeFile stub) signatureFiles
 
 check32 :: Iface.Interface -> IO ()
 check32 iface = do
