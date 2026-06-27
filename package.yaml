@@ -45,6 +45,9 @@ extra-source-files:
 - test-files/iface/x64/ghc9084/X.hi
 - test-files/iface/x64/ghc9103/Main.hi
 - test-files/iface/x64/ghc9103/X.hi
+- test-files/iface/x64/ghc9103-signatures/LogHelper.hi
+- test-files/iface/x64/ghc9103-signatures/Consumer.hi
+- test-files/iface/x64/ghc9103-signatures/Main.hi
 - test-files/iface/x64/ghc9124/Main.hi
 - test-files/iface/x64/ghc9124/X.hi
 - test-files/iface/x64/ghc9141/Main.hi
