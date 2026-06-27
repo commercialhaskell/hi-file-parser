@@ -1,0 +1,9 @@
+ # All that is required to build the project packages is a compiler version
+ # snapshot:
+snapshot: ghc-9.10.3
+
+packages:
+- consumer-pkg
+- impl-pkg
+- logger-sig
+- str-sig
