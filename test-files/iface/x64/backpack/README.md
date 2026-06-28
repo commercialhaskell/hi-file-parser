@@ -32,3 +32,11 @@ The relevant `*.hi` files are then:
 * `Main.hi`, which should be located in a `consumer-demo\consumer-demo-tmp`
   directory in  the `build` directory of the `dist` directory of the
   `consumer-pkg` project package Stack work directory.
+
+## Windows
+
+On Windows, for certain GHC versions only, the Stack project may not build due
+to the length of generated paths. This appears to affect GHC versions before
+GHC 8.10.1, GHC 9.4.4 and GHC 9.14.1. The project should build if the project
+directory is moved to a location where the length of generated paths will be
+shorter.

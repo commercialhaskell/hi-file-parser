@@ -89,7 +89,7 @@ in file `README.md` in that project directory.
     ~~~text
     > cp logger-sig\$(stack --snapshot ghc-9.10.3 path --dist-dir)\build\LogHelper.hi ../ghc9103/signatures
 
-    > cp consumer-pkg\$(stack --snapshot ghc-9.10.3 path --dist-dir)\build\Consumer.hi ../x64/ghc9103/signatures
+    > cp consumer-pkg\$(stack --snapshot ghc-9.10.3 path --dist-dir)\build\Consumer.hi ../ghc9103/signatures
 
     > cp consumer-pkg\$(stack --snapshot ghc-9.10.3 path --dist-dir)\build\consumer-demo\consumer-demo-tmp\Main.hi ../ghc9103/signatures
     ~~~
