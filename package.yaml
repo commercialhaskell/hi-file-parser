@@ -1,7 +1,7 @@
 spec-version: 0.36.0
 
 name: hi-file-parser
-version: 0.1.8.0
+version: 0.1.9.0
 github: commercialhaskell/hi-file-parser
 synopsis: Parser for GHC's *.hi files
 description: |
@@ -12,7 +12,7 @@ author: Hussein Ait-Lahcen <hussein.aitlahcen@gmail.com>
 maintainer:
 - Michael Snoyman <michael@snoyman.com>
 - Mike Pilgrem <public@pilgrem.com>
-copyright: Copyright 2015-2025, Stack contributors
+copyright: Copyright 2015-2026, Stack contributors
 
 extra-source-files:
 - README.md
