@@ -44,7 +44,19 @@ versions64 =
 -- | GHC x.y.z is represented as \"ghcxyyz\" where yy is padded with zeros.
 signatureVersions64 :: [Version]
 signatureVersions64 =
-  [ "ghc9103"  -- Last in GHC 9.10 series, using GHC 9.8.1 format
+  [ "ghc8044"  -- Last in GHC 8.4 series, using GHC 8.4.1 format
+  , "ghc8065"  -- Last in GHC 8.6 series, using GHC 8.6.1 format
+  , "ghc8084"  -- Last in GHC 8.8 series, using GHC 8.6.1 format
+  , "ghc9002"  -- Last in GHC 9.0 series, using GHC 9.0.1 format
+  , "ghc9028"  -- Last in GHC 9.2 series, using GHC 9.0.1 format
+  , "ghc9044"  -- Last using GHC 9.4.1 format
+  , "ghc9048"  -- Last in GHC 9.4 series, using GHC 9.4.5 format
+  , "ghc9067"  -- Last in GHC 9.6 series, using GHC 9.4.5 format
+  , "ghc9084"  -- Last in GHC 9.8 series, using GHC 9.8.1 format
+  , "ghc8107"  -- Last in GHC 8.10 series, using GHC 8.10.1 format
+  , "ghc9103"  -- Last in GHC 9.10 series, using GHC 9.8.1 format
+  , "ghc9124"  -- Last in GHC 9.12 series, using GHC 9.12 format
+  , "ghc9141"  -- First in GHC 9.14 series, using GHC 9.14 format
   ]
 
 -- | Interface files that exercise two distinct bugs in
