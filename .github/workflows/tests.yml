@@ -35,16 +35,16 @@ jobs:
         - stack-ghc-9.14.1.yaml
     steps:
     - name: Clone project
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: Cache dependencies on Unix-like OS
       if: startsWith(runner.os, 'Linux') || startsWith(runner.os, 'macOS')
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.stack
         key: ${{ runner.os }}-${{ hashFiles( matrix.snapshot ) }}
     - name: Cache dependencies on Windows
       if: startsWith(runner.os, 'Windows')
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: |
           ~\AppData\Roaming\stack
