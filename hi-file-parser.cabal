@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           hi-file-parser
-version:        0.1.9.0
+version:        0.1.9.1
 synopsis:       Parser for GHC's *.hi files
 description:    A parser for GHC's *.hi files. Extracts information about dependencies and
                 usage of files.
@@ -30,24 +30,54 @@ extra-source-files:
     test-files/iface/x64/ghc8022/X.hi
     test-files/iface/x64/ghc8044/Main.hi
     test-files/iface/x64/ghc8044/X.hi
+    test-files/iface/x64/ghc8044/signatures/Consumer.hi
+    test-files/iface/x64/ghc8044/signatures/LogHelper.hi
+    test-files/iface/x64/ghc8044/signatures/Main.hi
     test-files/iface/x64/ghc8065/Main.hi
     test-files/iface/x64/ghc8065/X.hi
+    test-files/iface/x64/ghc8065/signatures/Consumer.hi
+    test-files/iface/x64/ghc8065/signatures/LogHelper.hi
+    test-files/iface/x64/ghc8065/signatures/Main.hi
     test-files/iface/x64/ghc8084/Main.hi
     test-files/iface/x64/ghc8084/X.hi
+    test-files/iface/x64/ghc8084/signatures/Consumer.hi
+    test-files/iface/x64/ghc8084/signatures/LogHelper.hi
+    test-files/iface/x64/ghc8084/signatures/Main.hi
     test-files/iface/x64/ghc8107/Main.hi
     test-files/iface/x64/ghc8107/X.hi
+    test-files/iface/x64/ghc8107/signatures/Consumer.hi
+    test-files/iface/x64/ghc8107/signatures/LogHelper.hi
+    test-files/iface/x64/ghc8107/signatures/Main.hi
     test-files/iface/x64/ghc9002/Main.hi
     test-files/iface/x64/ghc9002/X.hi
+    test-files/iface/x64/ghc9002/signatures/Consumer.hi
+    test-files/iface/x64/ghc9002/signatures/LogHelper.hi
+    test-files/iface/x64/ghc9002/signatures/Main.hi
     test-files/iface/x64/ghc9028/Main.hi
     test-files/iface/x64/ghc9028/X.hi
+    test-files/iface/x64/ghc9028/signatures/Consumer.hi
+    test-files/iface/x64/ghc9028/signatures/LogHelper.hi
+    test-files/iface/x64/ghc9028/signatures/Main.hi
     test-files/iface/x64/ghc9044/Main.hi
     test-files/iface/x64/ghc9044/X.hi
+    test-files/iface/x64/ghc9044/signatures/Consumer.hi
+    test-files/iface/x64/ghc9044/signatures/LogHelper.hi
+    test-files/iface/x64/ghc9044/signatures/Main.hi
     test-files/iface/x64/ghc9048/Main.hi
     test-files/iface/x64/ghc9048/X.hi
+    test-files/iface/x64/ghc9048/signatures/Consumer.hi
+    test-files/iface/x64/ghc9048/signatures/LogHelper.hi
+    test-files/iface/x64/ghc9048/signatures/Main.hi
     test-files/iface/x64/ghc9067/Main.hi
     test-files/iface/x64/ghc9067/X.hi
+    test-files/iface/x64/ghc9067/signatures/Consumer.hi
+    test-files/iface/x64/ghc9067/signatures/LogHelper.hi
+    test-files/iface/x64/ghc9067/signatures/Main.hi
     test-files/iface/x64/ghc9084/Main.hi
     test-files/iface/x64/ghc9084/X.hi
+    test-files/iface/x64/ghc9084/signatures/Consumer.hi
+    test-files/iface/x64/ghc9084/signatures/LogHelper.hi
+    test-files/iface/x64/ghc9084/signatures/Main.hi
     test-files/iface/x64/ghc9103/Main.hi
     test-files/iface/x64/ghc9103/X.hi
     test-files/iface/x64/ghc9103/signatures/Consumer.hi
@@ -55,8 +85,14 @@ extra-source-files:
     test-files/iface/x64/ghc9103/signatures/Main.hi
     test-files/iface/x64/ghc9124/Main.hi
     test-files/iface/x64/ghc9124/X.hi
+    test-files/iface/x64/ghc9124/signatures/Consumer.hi
+    test-files/iface/x64/ghc9124/signatures/LogHelper.hi
+    test-files/iface/x64/ghc9124/signatures/Main.hi
     test-files/iface/x64/ghc9141/Main.hi
     test-files/iface/x64/ghc9141/X.hi
+    test-files/iface/x64/ghc9141/signatures/Consumer.hi
+    test-files/iface/x64/ghc9141/signatures/LogHelper.hi
+    test-files/iface/x64/ghc9141/signatures/Main.hi
 
 source-repository head
   type: git
