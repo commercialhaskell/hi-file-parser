@@ -52,6 +52,7 @@ import           Numeric ( showHex )
 import           RIO ( Generic, Int64, NFData )
 import           RIO.ByteString as B ( ByteString, hGetSome, null )
 import           System.IO ( withBinaryFile )
+import           Text.Read ( readMaybe )
 
 newtype IfaceGetState = IfaceGetState
   { useLEB128 :: Bool -- ^ Use LEB128 encoding for numbers
@@ -187,7 +188,7 @@ with = traceShow
 
 -- | Like 'with' but we discard the information.
 skipWith :: Show a => String -> Get a -> Get ()
-skipWith s = void . traceShow s 
+skipWith s = void . traceShow s
 
 -- | Read a block prefixed with its length
 withBlockPrefix :: Get a -> Get a
@@ -554,7 +555,7 @@ getInterface861 d = do
 
 getInterfaceRecent :: IfaceVersion -> Dictionary -> Get Interface
 getInterfaceRecent version d = do
-  if 
+  if
     | version >= V9140 -> do
         skipIfaceModInfo -- mi_mod_info_
         skipFP           -- mi_iface_hash_
@@ -608,14 +609,14 @@ getInterfaceRecent version d = do
 
   -- See `instance Binary Dependencies` in module GHC.Unit.Module.Deps.
   getDependencies =
-    if 
+    if
       | version >= V9041 -> do
-          -- warning: transitive dependencies are no longer stored, only direct 
+          -- warning: transitive dependencies are no longer stored, only direct
           -- imports!
           -- Modules are now prefixed with their UnitId (should have been
           -- ModuleWithIsBoot ...)
           direct_mods <- with "direct_mods:" $
-            if 
+            if
               | version >= V9140 -> getList $ do
                   skipIfaceImportLevel
                   skipFastString
@@ -629,29 +630,29 @@ getInterfaceRecent version d = do
                   skipIfaceImportLevel
                   getFastString
               | otherwise -> getList getFastString
-  
+
           -- plugin packages are now stored separately
           plugin_pkgs <- getList getFastString
           let all_pkgs = unList plugin_pkgs ++ unList direct_pkgs
-  
+
           -- instead of a trust bool for each unit, we have an additional
           -- list of trusted units (transitive)
           trusted_pkgs <- getList getFastString
           let trusted u = u `elem` unList trusted_pkgs
               all_pkgs_trust = List (zip all_pkgs (map trusted all_pkgs))
-  
+
           -- these are new
           skipList skipFastString -- sig_mods :: [ModuleName]
           skipList $ do -- boot_mods
             skipFastString
             getTuple skipFastString skipBool
-  
+
           dep_orphs  <- getList getModule
           dep_finsts <- getList getModule
-  
+
           -- plugin names are no longer stored here
           let dep_plgins = List []
-  
+
           pure Dependencies
             { dmods    = direct_mods
             , dpkgs    = all_pkgs_trust
@@ -673,19 +674,19 @@ getInterfaceRecent version d = do
             , dplugins = dep_plgins
             }
 
-  -- See `newtype IfaceImportLevel` and 
-  -- `deriving Binary via EnumBinary ImportLevel` in module 
+  -- See `newtype IfaceImportLevel` and
+  -- `deriving Binary via EnumBinary ImportLevel` in module
   -- GHC.Unit.Module.Deps. We discard this information.
   skipIfaceImportLevel :: Get ()
   skipIfaceImportLevel = skipImportLevel
 
-  -- See `data ImportLevel` and 
+  -- See `data ImportLevel` and
   -- `deriving via (EnumBinary ImportLevel) instance Binary ImportLevel` in
   -- module GHC.Types.Basic. We discard this information.
   skipImportLevel :: Get ()
   skipImportLevel = void getInt64be
 
-  -- See `data Usage` and `instance Binary Usage` in module 
+  -- See `data Usage` and `instance Binary Usage` in module
   -- GHC.Module.Unit.Deps. We discard most of the information, except about the
   -- usage of files.
   getFileUsage = List . catMaybes . unList <$> getList go
@@ -714,7 +715,7 @@ getInterfaceRecent version d = do
         2 -> do
           -- usg_file_path
           file_path  <- with "File:" $
-            if 
+            if
               | version >= V9081 -> Text.unpack . Text.decodeUtf8 <$> getFastString
               | otherwise -> getString
           skipWith "FP:" getFP                  -- usg_file_hash
@@ -742,7 +743,7 @@ getInterfaceRecent version d = do
     skipHomeModImportedAvails
 
   -- See `data HomeModImportedAvails` and
-  -- `instance Binary HomeModImportedAvails` in module GHC.Unit.Module.Deps. We 
+  -- `instance Binary HomeModImportedAvails` in module GHC.Unit.Module.Deps. We
   -- discard the information.
   skipHomeModImportedAvails :: Get ()
   skipHomeModImportedAvails = do
@@ -781,7 +782,7 @@ getInterfaceRecent version d = do
   skipEntitiesList :: Get ()
   skipEntitiesList = skipList (getTuple skipOccName skipFP)
 
-  -- See `data OccName` and `instance Binary OccName` in module 
+  -- See `data OccName` and `instance Binary OccName` in module
   -- GHC.Types.Name.Occurrence. We discard the information.
   skipOccName :: Get ()
   skipOccName = do
@@ -792,7 +793,7 @@ getInterfaceRecent version d = do
   -- discard the information.
   skipNameSpace :: Get ()
   skipNameSpace =
-    if 
+    if
       | version >= V9081 -> do
           nameSpaceType <- getWord8
           case nameSpaceType of
@@ -867,22 +868,25 @@ getInterface = do
   version <- getString
   traceGet ("Version: " ++ version)
 
-  let !ifaceVersion
-        | version >= "9140" = V9140 -- Support GHC 9.14.1-alpha1
-        | version >= "9121" = V9121
-        | version >= "9081" = V9081
-        | version >= "9045" = V9045
-        | version >= "9041" = V9041
-        | version >= "9001" = V9001
-        | version >= "8101" = V8101
-        | version >= "8061" = V8061
-        | version >= "8041" = V8041
-        | version >= "8021" = V8021
-        | version >= "8001" = V8001
-        | version >= "7081" = V7081
-        | version >= "7061" = V7061
-        | version >= "7041" = V7041
-        | version >= "7021" = V7021
+  let ghcVersion = case toGhcVersion version of
+        Right v -> v
+        Left msg -> error msg
+      !ifaceVersion
+        | ghcVersion >= [9, 14, 0] = V9140 -- Support GHC 9.14.1-alpha1
+        | ghcVersion >= [9, 12, 1] = V9121
+        | ghcVersion >= [9,  8, 1] = V9081
+        | ghcVersion >= [9,  4, 5] = V9045
+        | ghcVersion >= [9,  4, 1] = V9041
+        | ghcVersion >= [9,  0, 1] = V9001
+        | ghcVersion >= [8, 10, 1] = V8101
+        | ghcVersion >= [8,  6, 1] = V8061
+        | ghcVersion >= [8,  4, 1] = V8041
+        | ghcVersion >= [8,  2, 1] = V8021
+        | ghcVersion >= [8,  0, 1] = V8001
+        | ghcVersion >= [7,  8, 1] = V7081
+        | ghcVersion >= [7,  6, 1] = V7061
+        | ghcVersion >= [7,  4, 1] = V7041
+        | ghcVersion >= [7,  2, 1] = V7021
         | otherwise         = error $ "Unsupported version: " <> version
 
   -- way
@@ -972,3 +976,42 @@ getSLEB128 = do
       else do
         let !signed = testBit byte 6
         return (val',shift',signed)
+
+-- Assumes that a valid version string is in one of the following formats:
+-- <version>
+-- <version>YYYYMMDD
+-- where <version> is one of:
+-- xyyz
+-- xxyyz
+toGhcVersion :: String -> Either String [Word]
+toGhcVersion s
+  | l == 12 || l == 13 =
+      let (s', a') = splitAt (l - 8) s
+      in  case toGhcVersion s' of
+            Right v -> case readMaybe a' :: Maybe Word of
+              Just a -> Right $ v <> [a]
+              Nothing -> Left $ "Unrecognised patch in version: " <> a'
+            Left msg -> Left msg
+  | l == 4 || l == 5 =
+      let (s', z') = splitAt (l - 1) s
+      in  case toGhcVersion' s' of
+            Right v -> case readMaybe z' :: Maybe Word of
+              Just z -> Right $ v <> [z]
+              Nothing -> Left $ "Unrecognised z in version: " <> z'
+            Left msg -> Left msg
+  | otherwise = Left $ "Unrecognised version: " <> s
+ where
+  l = length s
+
+toGhcVersion' :: String -> Either String [Word]
+toGhcVersion' s
+  | l == 3 || l == 4 =
+      let (x', y') = splitAt (l - 2) s
+      in  case readMaybe y' :: Maybe Word of
+            Just y -> case readMaybe x' :: Maybe Word of
+              Just x -> Right [x, y]
+              Nothing -> Left $ "Unrecognised x in version: " <> x'
+            Nothing -> Left $ "Unrecognised y in version: " <> y'
+  | otherwise = Left $ "Unrecognised x.y in version: " <> s
+ where
+  l = length s
