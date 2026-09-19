@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to the
 [Haskell Package Versioning Policy](https://pvp.haskell.org/).
 
+## 0.1.9.2 - 2026-09-19
+
+* Add support for GHC 10.0.
+
 ## 0.1.9.1 - 2026-06-29
 
 * Add `extra-source-files` for test suite missing from `hi-file-parser-0.1.9.0`.
